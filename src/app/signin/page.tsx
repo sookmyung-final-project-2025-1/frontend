@@ -21,7 +21,7 @@ export default function SignIn() {
       <div className='flex flex-col gap-[40px] items-center'>
         <Login />
         <div className='flex justify-between gap-[30px] w-fit text-gray-90 text-[15px]'>
-          <Link href={'/find'}>아이디/비밀번호 찾기</Link>
+          <Link href={'/find'}>이메일/비밀번호 찾기</Link>
           <div className='w-[1px] h-[20px] bg-[#BDBEBE]'></div>
           <Link href={'/signup'}>회원가입</Link>
         </div>

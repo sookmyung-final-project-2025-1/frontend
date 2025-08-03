@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import './globals.css';
+import '../globals.css';
 
 export default function LogoLayout({
   children,
@@ -14,16 +14,9 @@ export default function LogoLayout({
             src='/assets/image/LOGO.png'
             alt='로고 이미지'
             width={120}
-            height={50}
+            height={48}
           />
-          <button>
-            <Image
-              src='/assets/icons/menu.png'
-              alt='메뉴 아이콘'
-              width={40}
-              height={40}
-            />
-          </button>
+          <div></div>
         </div>
       </header>
       <main className='pt-[100px]'>{children}</main>

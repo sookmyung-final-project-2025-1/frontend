@@ -17,12 +17,12 @@ export default function Login() {
 
   const { watch, register } = methods;
 
-  const userId = watch('id');
+  const userEmail = watch('email');
   const userPw = watch('password');
 
   useEffect(() => {
-    setIsFilled(!!userId && !!userPw);
-  }, [userId, userPw]);
+    setIsFilled(!!userEmail && !!userPw);
+  }, [userEmail, userPw]);
 
   return (
     <FormProvider {...methods}>
@@ -30,9 +30,10 @@ export default function Login() {
         <div className='flex flex-col gap-[40px]'>
           <div className='w-[395px] flex flex-col gap-[10px]'>
             <input
-              {...register('id')}
+              {...register('email')}
               className={INPUTSTYLE}
-              placeholder='아이디'
+              placeholder='이메일'
+              type='email'
             />
             <div className='relative'>
               <input
