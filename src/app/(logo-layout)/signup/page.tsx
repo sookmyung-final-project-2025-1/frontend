@@ -1,7 +1,7 @@
 import UploadFile from '@/components/ui/UploadFile';
 import Image from 'next/image';
 
-export default function Test() {
+export default function SignUp() {
   return (
     <div className='relative bg-white-50 rounded-[30px] w-full h-[80vh] px-[5%] py-[3%] flex flex-col'>
       <div className='flex flex-col gap-[5px]'>

@@ -3,19 +3,22 @@
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
+import Input from './ui/Input';
 
-const INPUTSTYLE =
-  'w-full h-[50px] border border-[#BDBEBE] rounded-[10px] px-[15px] py-[5px] placeholder:text-[#BDBEBE] outline-none focus:border-blue-50';
+type LoginForm = {
+  email: string;
+  password: string;
+};
 
 export default function Login() {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isFilled, setIsFilled] = useState<boolean>(false);
 
-  const methods = useForm({
+  const methods = useForm<LoginForm>({
     mode: 'onSubmit',
   });
 
-  const { watch, register } = methods;
+  const { watch, control, handleSubmit, formState } = methods;
 
   const userEmail = watch('email');
   const userPw = watch('password');
@@ -24,38 +27,45 @@ export default function Login() {
     setIsFilled(!!userEmail && !!userPw);
   }, [userEmail, userPw]);
 
+  const onSubmit = (data: LoginForm) => {
+    alert(`입력 데이터: ${data}`);
+  };
+
   return (
     <FormProvider {...methods}>
-      <form>
+      <form onSubmit={handleSubmit(onSubmit)}>
         <div className='flex flex-col gap-[40px]'>
           <div className='w-[395px] flex flex-col gap-[10px]'>
-            <input
-              {...register('email')}
-              className={INPUTSTYLE}
+            <Input<LoginForm>
+              name='email'
+              control={control}
               placeholder='이메일'
               type='email'
+              error={formState.errors.email}
             />
-            <div className='relative'>
-              <input
-                {...register('password')}
-                className={`${INPUTSTYLE} pr-[40px]`}
-                placeholder='비밀번호'
-                type={isOpen ? 'text' : 'password'}
-              />
-              <button onClick={() => setIsOpen((prev) => !prev)} type='button'>
-                <Image
-                  src={`/assets/icons/${isOpen ? 'openedEye' : 'hiddenEye'}.png`}
-                  width={24}
-                  height={24}
-                  alt='눈 아이콘'
-                  className='absolute right-[10px] top-1/2 -translate-y-1/2 z-10'
-                />
-              </button>
-            </div>
+            <Input<LoginForm>
+              name='password'
+              control={control}
+              placeholder='비밀번호'
+              type={isOpen ? 'text' : 'password'}
+              rightIcon={
+                <button
+                  type='button'
+                  onClick={() => setIsOpen((prev) => !prev)}
+                >
+                  <Image
+                    src={`/assets/icons/${isOpen ? 'openedEye' : 'hiddenEye'}.png`}
+                    width={24}
+                    height={24}
+                    alt='비밀번호 보기'
+                  />
+                </button>
+              }
+              error={formState.errors.password}
+            />
           </div>
           <button
             className={`w-full h-[50px] text-[#ffffff] font-semibold rounded-[10px] ${isFilled ? 'bg-blue-50' : 'bg-[#E5E5E5]'}`}
-            type={isFilled ? 'button' : 'submit'}
           >
             로그인
           </button>

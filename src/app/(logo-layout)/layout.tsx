@@ -11,7 +11,7 @@ export default function LogoLayout({
       <header className='absolute top-[30px] inset-x-0 w-[80vw] mx-auto'>
         <div className='flex justify-between items-center'>
           <Image
-            src='/assets/image/LOGO.png'
+            src='/assets/images/LOGO.png'
             alt='로고 이미지'
             width={120}
             height={48}

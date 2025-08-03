@@ -1,30 +1,74 @@
 'use client';
 
-import { FieldValues, Path } from 'react-hook-form';
+import { ReactNode } from 'react';
+import {
+  Control,
+  Controller,
+  FieldError,
+  FieldValues,
+  Path,
+} from 'react-hook-form';
 
-type InputProp<T extends FieldValues> = {
-  /** useForm에서 사용할 이름 */
+type InputProps<T extends FieldValues> = {
+  /** form 필드의 key 이름 */
   name: Path<T>;
-  /** useForm에서 사용할 컨트롤러 */
-  // control:
-  /** tailwind 스타일 */
-  size: string;
-  /** 플레이스 홀더 */
+  /** control 객체 -> Controller 연결 */
+  control: Control<T>;
   placeholder?: string;
-  /** input 타입 */
-  type?: 'text' | 'password' | 'email';
-  /** 비활성화 여부 */
+  type?: string;
+  rightIcon?: ReactNode;
+  className?: string;
   disabled?: boolean;
-  /** input 스타일 지정 */
-  inputStyle?: string;
-  /** text 스타일 지정 */
-  textStyle?: string;
-  /** 최대 글자 수 */
-  maxLength?: number;
-  /** 글자수 카운트 여부 */
-  showCharacterCount?: boolean;
-  /** 비밀번호 토클 표시 여부 */
-  showPasswordToggle?: boolean;
+  error?: FieldError;
 };
 
-export default function Input() {}
+const INPUTSTYLE =
+  'w-full h-[50px] border rounded-[10px] px-[15px] py-[5px] placeholder:text-[#BDBEBE] outline-none transition-all';
+const ERROR_BORDER = 'border-red-500';
+const DEFAULT_BORDER = 'border-[#BDBEBE] focus:border-blue-50';
+
+export default function Input<T extends FieldValues>({
+  name,
+  control,
+  placeholder,
+  type = 'text',
+  rightIcon,
+  className = '',
+  disabled = false,
+  error,
+}: InputProps<T>) {
+  return (
+    <>
+      <div className='relative'>
+        <Controller
+          name={name}
+          control={control}
+          render={({ field }) => (
+            <input
+              {...field}
+              name={name}
+              type={type}
+              disabled={disabled}
+              placeholder={placeholder}
+              className={`
+                ${INPUTSTYLE}
+                ${error ? ERROR_BORDER : DEFAULT_BORDER}
+                ${rightIcon ? 'pr-[40px]' : ''}
+                ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}
+                ${className}
+              `}
+            />
+          )}
+        />
+        {rightIcon && (
+          <div className='absolute right-[10px] top-1/2 -translate-y-1/2 z-10'>
+            {rightIcon}
+          </div>
+        )}
+      </div>
+      {error?.message && (
+        <span className='text-sm text-red-500'>{error.message}</span>
+      )}
+    </>
+  );
+}
