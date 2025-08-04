@@ -16,6 +16,10 @@ export default function Login() {
 
   const methods = useForm<LoginForm>({
     mode: 'onSubmit',
+    defaultValues: {
+      email: '',
+      password: '',
+    },
   });
 
   const { watch, control, handleSubmit, formState } = methods;

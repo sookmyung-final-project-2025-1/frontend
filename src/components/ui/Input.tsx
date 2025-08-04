@@ -14,6 +14,7 @@ type InputProps<T extends FieldValues> = {
   name: Path<T>;
   /** control 객체 -> Controller 연결 */
   control: Control<T>;
+  size?: string;
   placeholder?: string;
   type?: string;
   rightIcon?: ReactNode;
@@ -23,13 +24,14 @@ type InputProps<T extends FieldValues> = {
 };
 
 const INPUTSTYLE =
-  'w-full h-[50px] border rounded-[10px] px-[15px] py-[5px] placeholder:text-[#BDBEBE] outline-none transition-all';
+  'h-[50px] border rounded-[10px] px-[15px] py-[5px] placeholder:text-[#BDBEBE] outline-none transition-all';
 const ERROR_BORDER = 'border-red-500';
-const DEFAULT_BORDER = 'border-[#BDBEBE] focus:border-blue-50';
+const DEFAULT_BORDER = 'border-[#E5E5E5] focus:border-blue-50';
 
 export default function Input<T extends FieldValues>({
   name,
   control,
+  size,
   placeholder,
   type = 'text',
   rightIcon,
@@ -51,6 +53,7 @@ export default function Input<T extends FieldValues>({
               disabled={disabled}
               placeholder={placeholder}
               className={`
+                ${size ? size : 'w-full'}
                 ${INPUTSTYLE}
                 ${error ? ERROR_BORDER : DEFAULT_BORDER}
                 ${rightIcon ? 'pr-[40px]' : ''}
@@ -61,7 +64,7 @@ export default function Input<T extends FieldValues>({
           )}
         />
         {rightIcon && (
-          <div className='absolute right-[10px] top-1/2 -translate-y-1/2 z-10'>
+          <div className='absolute right-[20px] top-[28px] -translate-y-1/2 z-10'>
             {rightIcon}
           </div>
         )}
