@@ -7,7 +7,7 @@ export default function LogoLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <body className='w-[80vw] mx-auto relative bg-[#F2F4F8]'>
+    <div className='w-[80vw] mx-auto relative bg-[#F2F4F8]'>
       <header className='absolute top-[30px] inset-x-0 w-[80vw] mx-auto'>
         <div className='flex justify-between items-center'>
           <Image
@@ -22,6 +22,6 @@ export default function LogoLayout({
       <main className='pt-[100px] flex justify-center items-center'>
         {children}
       </main>
-    </body>
+    </div>
   );
 }
