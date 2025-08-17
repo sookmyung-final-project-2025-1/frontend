@@ -27,6 +27,7 @@ module.exports = {
           50: '#ffffff',
           70: '#FCFCFC',
         },
+        red: '#FE294B',
       },
       fontFamily: {
         pretendard: ['var(--font-pretendard)'],
