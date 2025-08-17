@@ -1,13 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
-import {
-  Control,
-  Controller,
-  FieldError,
-  FieldValues,
-  Path,
-} from 'react-hook-form';
+import { Control, Controller, FieldValues, Path } from 'react-hook-form';
 
 type InputProps<T extends FieldValues> = {
   /** form 필드의 key 이름 */
@@ -20,12 +14,14 @@ type InputProps<T extends FieldValues> = {
   rightIcon?: ReactNode;
   className?: string;
   disabled?: boolean;
-  error?: FieldError;
+  hideErrorMessage?: boolean;
+  showMaxLength?: boolean;
+  maxLength?: number;
 };
 
 const INPUTSTYLE =
-  'h-[50px] border rounded-[10px] px-[15px] py-[5px] placeholder:text-[#BDBEBE] outline-none transition-all';
-const ERROR_BORDER = 'border-red-500';
+  'h-[50px] border rounded-[10px] px-[15px] py-[5px] outline-none placeholder:text-[#BDBEBE]';
+const ERROR_BORDER = 'border-red focus:border-red';
 const DEFAULT_BORDER = 'border-[#E5E5E5] focus:border-blue-50';
 
 export default function Input<T extends FieldValues>({
@@ -37,7 +33,9 @@ export default function Input<T extends FieldValues>({
   rightIcon,
   className = '',
   disabled = false,
-  error,
+  hideErrorMessage = false,
+  showMaxLength,
+  maxLength,
 }: InputProps<T>) {
   return (
     <>
@@ -45,23 +43,45 @@ export default function Input<T extends FieldValues>({
         <Controller
           name={name}
           control={control}
-          render={({ field }) => (
-            <input
-              {...field}
-              name={name}
-              type={type}
-              disabled={disabled}
-              placeholder={placeholder}
-              className={`
+          render={({ field, fieldState }) => {
+            const value =
+              typeof field.value === 'string'
+                ? field.value
+                : String(field.value ?? '');
+            const length = value.length;
+
+            return (
+              <div>
+                <input
+                  {...field}
+                  name={name}
+                  type={type}
+                  disabled={disabled}
+                  placeholder={placeholder}
+                  maxLength={maxLength}
+                  className={`
                 ${size ? size : 'w-full'}
                 ${INPUTSTYLE}
-                ${error ? ERROR_BORDER : DEFAULT_BORDER}
+                ${fieldState.error ? ERROR_BORDER : DEFAULT_BORDER}
                 ${rightIcon ? 'pr-[40px]' : ''}
                 ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}
                 ${className}
               `}
-            />
-          )}
+                />
+                {showMaxLength && maxLength && (
+                  <div className='absolute right-[55px] top-[12.5px] font-semibold text-[17px]'>
+                    <span className='text-gray-90'>{length}</span>
+                    <span className='text-gray-50'> / 20</span>
+                  </div>
+                )}
+                {fieldState.error?.message && !hideErrorMessage && (
+                  <div className='ml-[5px] mt-[5px] text-red text-[12px]'>
+                    {fieldState.error.message}
+                  </div>
+                )}
+              </div>
+            );
+          }}
         />
         {rightIcon && (
           <div className='absolute right-[20px] top-[28px] -translate-y-1/2 z-10'>
@@ -69,9 +89,6 @@ export default function Input<T extends FieldValues>({
           </div>
         )}
       </div>
-      {error?.message && (
-        <span className='text-sm text-red-500'>{error.message}</span>
-      )}
     </>
   );
 }
