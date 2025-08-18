@@ -10,6 +10,13 @@ export const ConfirmVerifyEmailSchema = z.object({
 });
 export type ConfirmVerifyEmailType = z.infer<typeof ConfirmVerifyEmailSchema>;
 
+// 이메일 인증코드 요청 응답 스키마
+export const EmailVerificationResponseSchema = z.object({
+  success: z.literal(true),
+  message: z.string(),
+  expirationSeconds: z.number().int().nonnegative(),
+});
+
 // 이메일 인증코드 발송
 export const SendVerifyEmailSchema = z.object({
   email: z.email(),
@@ -30,7 +37,10 @@ export const INDUSTRIES = ['PG', 'BANK', 'CARD'] as const;
 
 export const SignupSchema = z
   .object({
-    name: z.string().nonempty({ message: '이름을 입력해주세요.' }),
+    name: z
+      .string()
+      .nonempty({ message: '이름을 입력해주세요.' })
+      .min(2, { message: '이름은 두 글자 이상으로 작성해주세요.' }),
     businessNumber: BNPartsSchema,
     email: z
       .string()
@@ -66,3 +76,8 @@ export const SignupRequestSchema = SignupSchema.omit({
   passwordConfirm: true,
 }).extend({ businessNumber: z.string().regex(/^\d{3}-\d{2}-\d{5}$/) });
 export type SignupRequest = z.infer<typeof SignupRequestSchema>;
+
+export const SignupResponseSchema = z.object({
+  accessToken: z.string().min(1),
+});
+export type SignupResponse = z.infer<typeof SignupResponseSchema>;

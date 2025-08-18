@@ -1,30 +1,36 @@
 import { EmailVerifiationResponse } from '@/types/auth-response';
 import {
-  BusinessType,
   ConfirmVerifyEmailType,
+  EmailVerificationResponseSchema,
   SendVerifyEmailType,
   SignupRequest,
-  SignupType,
+  SignupResponse,
 } from '@/types/signUp.schema';
 import { useRouter } from 'next/navigation';
 import { useApiMutation } from './useApi';
 
 // 이메일 인증 코드 요청
 export const useSendEmailCode = () => {
-  return useApiMutation<void, SendVerifyEmailType>({
+  return useApiMutation<EmailVerifiationResponse, SendVerifyEmailType>({
     method: 'POST',
     endpoint: '/auth/send-verification-code',
     authorization: false,
+    responseSchema: EmailVerificationResponseSchema,
   });
 };
 
 // 이메일 인증 코드 확인
-export const useConfirmEmailCode = () => {
+export const useConfirmEmailCode = ({
+  onSuccess,
+}: {
+  onSuccess: () => void;
+}) => {
   return useApiMutation<EmailVerifiationResponse, ConfirmVerifyEmailType>({
     method: 'POST',
     endpoint: '/auth/verify-email',
     authorization: false,
     onSuccess: () => {
+      onSuccess();
       alert('인증코드가 확인되었습니다.');
     },
     onError: () => {
@@ -37,26 +43,10 @@ export const useConfirmEmailCode = () => {
 export const useSignup = () => {
   const router = useRouter();
 
-  const joinBusinessNumber = (businessNumber: BusinessType) => {
-    const p1 = businessNumber.part1;
-    const p2 = businessNumber.part2;
-    const p3 = businessNumber.part3;
-
-    return `${p1}-${p2}-${p3}`;
-  };
-
-  return useApiMutation<void, SignupType>({
+  return useApiMutation<SignupResponse, SignupRequest>({
     method: 'POST',
     endpoint: '/auth/signup',
     authorization: false,
-    body: (form) => {
-      const { businessNumber, ...rest } = form;
-      const payload: SignupRequest = {
-        ...rest,
-        businessNumber: joinBusinessNumber(businessNumber),
-      };
-      return payload;
-    },
     onSuccess: () => {
       router.replace('/signin');
     },
