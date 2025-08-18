@@ -8,7 +8,6 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
@@ -69,12 +68,11 @@ export const RenderCompanyInput = ({
           render={({ field, fieldState }) => (
             <div>
               <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger className='w-[180px] h-[50px] outline-none'>
+                <SelectTrigger className='w-[180px] h-[50px] outline-none text-[15px]'>
                   <SelectValue placeholder='업종을 선택하세요.' />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectLabel>Industry</SelectLabel>
                     <SelectItem value='PG' className={commonSelectStyle}>
                       PG
                     </SelectItem>
