@@ -69,13 +69,13 @@ export default function Input<T extends FieldValues>({
               `}
                 />
                 {showMaxLength && maxLength && (
-                  <div className='absolute right-[55px] top-[12.5px] font-semibold text-[17px]'>
+                  <div className='absolute right-[55px] top-[12.5px] font-semibold text-[17px] pointer-events-none select-none'>
                     <span className='text-gray-90'>{length}</span>
                     <span className='text-gray-50'> / 20</span>
                   </div>
                 )}
                 {fieldState.error?.message && !hideErrorMessage && (
-                  <div className='ml-[5px] mt-[5px] text-red text-[12px]'>
+                  <div className='ml-[5px] mt-[5px] text-red text-[12px] pointer-events-none select-none'>
                     {fieldState.error.message}
                   </div>
                 )}
