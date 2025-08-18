@@ -111,7 +111,16 @@ export async function fetcher<T>({
   const raw = await safeJson(res);
 
   if (!res.ok) {
-    throw new ApiError(res, raw);
+    const err = new ApiError(res, raw);
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[API ERROR]', {
+        method,
+        endpoint,
+        status: err.status,
+        rawBody: err.body,
+      });
+    }
   }
 
   // data 타입을 T로 고정 (schema 검증)
