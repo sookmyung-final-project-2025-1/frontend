@@ -30,7 +30,9 @@ export const useConfirmEmail = () => {
         throw e;
       });
 
-    await sendCode.mutateAsync({ email });
+    const res = await sendCode.mutateAsync({ email });
+
+    return res;
   };
 
   return { run, isSending: sendCode.isPending };
