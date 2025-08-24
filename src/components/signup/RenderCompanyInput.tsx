@@ -1,6 +1,6 @@
 'use client';
 
-import { SignupType } from '@/types/signUp.schema';
+import { SignupType } from '@/types/signup.schema';
 import { Control, Controller } from 'react-hook-form';
 import Input from '../ui/Input';
 import {
@@ -74,13 +74,13 @@ export const RenderCompanyInput = ({
                 <SelectContent>
                   <SelectGroup>
                     <SelectItem value='PG' className={commonSelectStyle}>
-                      PG
+                      PG사
                     </SelectItem>
                     <SelectItem value='BANK' className={commonSelectStyle}>
                       은행
                     </SelectItem>
                     <SelectItem value='CARD' className={commonSelectStyle}>
-                      카드
+                      카드사
                     </SelectItem>
                   </SelectGroup>
                 </SelectContent>

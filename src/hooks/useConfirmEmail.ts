@@ -1,5 +1,5 @@
 import { ApiError, fetcher } from '@/api/fetcher';
-import { SendVerifyEmailSchema } from '@/types/signUp.schema';
+import { SendVerifyEmailSchema } from '@/types/signup.schema';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSendEmailCode } from './queries/useSignupApi';
 import { QUERY_KEYS } from './queryKeys';
