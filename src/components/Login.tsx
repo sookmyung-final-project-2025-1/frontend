@@ -1,20 +1,19 @@
 'use client';
 
+import { useLogin } from '@/hooks/queries/useLoginApi';
+import { LoginType } from '@/types/signin.schema';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import Input from './ui/Input';
 
-type LoginForm = {
-  email: string;
-  password: string;
-};
-
 export default function Login() {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isFilled, setIsFilled] = useState<boolean>(false);
 
-  const methods = useForm<LoginForm>({
+  const requestLogin = useLogin();
+
+  const methods = useForm<LoginType>({
     mode: 'onSubmit',
     defaultValues: {
       email: '',
@@ -31,8 +30,8 @@ export default function Login() {
     setIsFilled(!!userEmail && !!userPw);
   }, [userEmail, userPw]);
 
-  const onSubmit = (data: LoginForm) => {
-    alert(`입력 데이터: ${data}`);
+  const onSubmit = (data: LoginType) => {
+    requestLogin.mutate(data);
   };
 
   return (
@@ -40,13 +39,13 @@ export default function Login() {
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className='flex flex-col gap-[40px]'>
           <div className='w-[395px] flex flex-col gap-[10px]'>
-            <Input<LoginForm>
+            <Input<LoginType>
               name='email'
               control={control}
               placeholder='이메일'
               type='email'
             />
-            <Input<LoginForm>
+            <Input<LoginType>
               name='password'
               control={control}
               placeholder='비밀번호'
