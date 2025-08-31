@@ -6,16 +6,20 @@ import Link from 'next/link';
 
 export default function SignIn() {
   return (
-    <div className='w-[395px] flex flex-col items-center gap-[60px]'>
-      <div className='flex flex-col items-center gap-[20px]'>
-        <Image
-          src='/assets/images/LOGO.png'
-          width={145}
-          height={61}
-          alt='로고 이미지'
-        />
-        <div className='text-gray-90 text-[20px] font-semibold'>
-          기업을 위한 사기 거래 탐지 시스템 LOGO
+    <div className='w-[395px] flex flex-col items-center gap-[50px]'>
+      <div className='flex flex-col items-center'>
+        <div className='relative w-[380px] h-[130px]'>
+          <Image
+            src='/assets/images/loho.svg'
+            alt='로고 이미지'
+            fill
+            className='object-contain'
+            unoptimized
+            priority
+          />
+        </div>
+        <div className='text-gray-30 text-[18px] font-semibold'>
+          기업을 위한 사기 거래 탐지 시스템 결제지킴이
         </div>
       </div>
       <div className='flex flex-col gap-[40px] items-center'>
