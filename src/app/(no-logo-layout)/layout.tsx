@@ -6,8 +6,8 @@ export default function SignInLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <body className='w-[100vw] h-[100vh] flex justify-center items-center'>
+    <div className='w-[100vw] h-[100vh] flex justify-center items-center'>
       {children}
-    </body>
+    </div>
   );
 }

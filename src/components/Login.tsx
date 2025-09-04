@@ -22,7 +22,7 @@ export default function Login() {
     },
   });
 
-  const { watch, control, handleSubmit, formState } = methods;
+  const { watch, control, handleSubmit } = methods;
 
   const userEmail = watch('email');
   const userPw = watch('password');
@@ -45,7 +45,6 @@ export default function Login() {
               control={control}
               placeholder='이메일'
               type='email'
-              error={formState.errors.email}
             />
             <Input<LoginForm>
               name='password'
@@ -65,7 +64,6 @@ export default function Login() {
                   />
                 </button>
               }
-              error={formState.errors.password}
             />
           </div>
           <button

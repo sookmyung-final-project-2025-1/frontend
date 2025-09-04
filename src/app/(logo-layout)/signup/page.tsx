@@ -1,60 +1,84 @@
 'use client';
 
+import EmailConfirmInput from '@/components/signup/EmailConfirmInput';
+import { RenderCompanyInput } from '@/components/signup/RenderCompanyInput';
 import Input from '@/components/ui/Input';
+import { useSignup } from '@/hooks/queries/useSignupApi';
+import { useConfirmBusiness } from '@/hooks/useConfirmBusiness';
+import { useConfirmEmail } from '@/hooks/useConfirmEmail';
+import {
+  INDUSTRIES,
+  SignupRequestSchema,
+  SignupSchema,
+  SignupType,
+} from '@/types/signUp.schema';
+import { zodResolver } from '@hookform/resolvers/zod';
 import Image from 'next/image';
 import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 
 type InputFieldProps = {
   title: string;
-  name: keyof SignUpForm;
+  name: keyof SignupType;
 };
 
-type RegisterType = {
-  part1: string;
-  part2: string;
-  part3: string;
-};
-
-type SignUpForm = {
-  userName: string;
-  email: string;
-  password: string;
-  passwordConfirm: string;
-  companyName: string;
-  businessType: string;
-  registerNumber: RegisterType;
-};
+export type Industry = (typeof INDUSTRIES)[number];
 
 export default function SignUp() {
   const [isPasswordVisible, setIsPasswordVisible] = useState<boolean>(false);
   const [isPasswordConfirmVisible, setIsPasswordConfirmVisible] =
     useState(false);
+  const [openConfirm, setOpenConfirm] = useState<boolean>(false);
+  const [confirmEmailStr, setConfirmEmailStr] = useState<string>('');
+  const [confirmEmail, setConfirmEmail] = useState<boolean>(false);
 
-  const methods = useForm<SignUpForm>({
-    mode: 'onSubmit',
+  const methods = useForm<SignupType>({
+    resolver: zodResolver(SignupSchema),
+    mode: 'onChange',
     defaultValues: {
-      userName: '',
+      name: '',
       email: '',
       password: '',
       passwordConfirm: '',
-      companyName: '',
-      businessType: '',
-      registerNumber: {
+      managerName: '',
+      industry: undefined,
+      businessNumber: {
         part1: '',
         part2: '',
         part3: '',
       },
     },
+    shouldFocusError: true,
   });
 
-  const { watch, control, handleSubmit } = methods;
+  const { control, handleSubmit, getValues } = methods;
 
-  const onSubmit = (data: SignUpForm) => {
-    const { part1, part2, part3 } = data.registerNumber;
-    const fullNumber = `${part1}${part2}${part3}`;
-    alert(`사업자등록번호: ${fullNumber}`);
-    alert(`회원가입 입력 데이터: ${data}`);
+  const signUp = useSignup();
+  const { run: checkEmail } = useConfirmEmail();
+  const { run: checkBusiness } = useConfirmBusiness();
+
+  const onSubmit = async (data: SignupType) => {
+    const { part1, part2, part3 } = data.businessNumber;
+    const bn = `${part1}-${part2}-${part3}`;
+
+    const payload = {
+      ...data,
+      businessNumber: bn,
+    };
+
+    signUp.mutate(SignupRequestSchema.parse(payload));
+
+    // 사업자 등록번호 중복 확인
+    // try {
+    //   const ok = await checkBusiness(bn);
+    //   if (!ok) {
+    //     alert('이미 등록된 사업자 등록 번호입니다.');
+    //     return;
+    //   }
+    //   signUp.mutate(data);
+    // } catch (e) {
+    //   alert('사업자번호 확인 중 오류가 발생했습니다.');
+    // }
   };
 
   const renderUserInputField = ({ title, name }: InputFieldProps) => {
@@ -67,6 +91,8 @@ export default function SignUp() {
         : title === '이메일'
           ? 'email'
           : 'text';
+
+    const setMaxLength = inputType === 'password' ? 20 : undefined;
 
     const isVisible = isPassword
       ? isPasswordVisible
@@ -89,13 +115,13 @@ export default function SignUp() {
         >
           <span>{title}</span>
           {title === '비밀번호' && (
-            <span className='text-[12px] font-medium text-gray-50'>
-              특수문자 포함 8자 이상
+            <span className='text-[11px] font-medium text-gray-50 leading-[12px]'>
+              대소문자/숫자/특수문자 포함 8자 이상
             </span>
           )}
         </div>
         <div className='flex-1'>
-          <Input<SignUpForm>
+          <Input<SignupType>
             name={name}
             control={control}
             type={isVisible ? 'text' : inputType}
@@ -113,60 +139,44 @@ export default function SignUp() {
                 ''
               )
             }
+            showMaxLength={inputType === 'password'}
+            maxLength={setMaxLength}
+            disabled={name === 'email' ? confirmEmail : undefined}
           />
         </div>
         {name === 'email' && (
           <button
-            className='w-[125px] text-[#ffffff] bg-blue-50 font-semibold rounded-[10px]'
+            className={`w-[125px] h-[50px] text-[#ffffff] font-semibold rounded-[10px] ${confirmEmail ? 'bg-gray-50' : 'bg-blue-50'}`}
             type='button'
+            onClick={async () => {
+              try {
+                const email = getValues('email').trim();
+                setOpenConfirm(true);
+
+                const { success, message, expirationSeconds } =
+                  await checkEmail(email);
+
+                if (!success) {
+                  alert(message || '인증 요청 실패');
+                  return;
+                }
+
+                setConfirmEmailStr(email);
+                alert(
+                  `인증코드를 전송했습니다. (유효시간 ${expirationSeconds}초)`
+                );
+              } catch {
+                setOpenConfirm(false);
+                alert('이메일 인증 요청에 실패했습니다. 다시 시도해 주세요.');
+              }
+            }}
+            disabled={confirmEmail ? confirmEmail : undefined}
           >
-            이메일 인증
+            {confirmEmail ? '인증 완료' : '이메일 인증'}
           </button>
         )}
       </div>
     );
-  };
-
-  const renderCompanyInput = ({ title, name }: InputFieldProps) => {
-    const commonStyle = 'w-full flex justify-between';
-    const commonTextStyle = 'text-gray-90 font-semibold';
-
-    if (name === 'registerNumber') {
-      return (
-        <div className={commonStyle}>
-          <span className={commonTextStyle}>{title}</span>
-          <div className='flex gap-[10px] items-center'>
-            <Input<SignUpForm>
-              name='registerNumber.part1'
-              control={control}
-              type='text'
-              size='w-[110px]'
-            />
-            <hr className='w-[20px] h-[3px] bg-[#BDBEBE] rounded-[10px]'></hr>
-            <Input<SignUpForm>
-              name='registerNumber.part2'
-              control={control}
-              type='text'
-              size='w-[105px]'
-            />
-            <hr className='w-[20px] h-[3px] bg-[#BDBEBE] rounded-[10px]'></hr>
-            <Input<SignUpForm>
-              name='registerNumber.part3'
-              control={control}
-              type='text'
-              size='w-[160px]'
-            />
-          </div>
-        </div>
-      );
-    } else {
-      return (
-        <div className={commonStyle}>
-          <span className={commonTextStyle}>{title}</span>
-          <Input<SignUpForm> name={name} control={control} type='text' />
-        </div>
-      );
-    }
   };
 
   return (
@@ -182,8 +192,19 @@ export default function SignUp() {
                 회원 정보
               </div>
               <div className='flex flex-col gap-[20px] pl-[15px]'>
-                {renderUserInputField({ title: '이름', name: 'userName' })}
-                {renderUserInputField({ title: '이메일', name: 'email' })}
+                {renderUserInputField({ title: '이름', name: 'name' })}
+                <div className='flex flex-col gap-[10px] w-fulls'>
+                  {renderUserInputField({ title: '이메일', name: 'email' })}
+                  <div className='w-[320px] ml-[140px]'>
+                    {openConfirm && !confirmEmail && (
+                      <EmailConfirmInput
+                        email={confirmEmailStr}
+                        setConfirmEmail={setConfirmEmail}
+                        setOpenConfirm={setOpenConfirm}
+                      />
+                    )}
+                  </div>
+                </div>
                 {renderUserInputField({ title: '비밀번호', name: 'password' })}
                 {renderUserInputField({
                   title: '비밀번호 확인',
@@ -199,29 +220,35 @@ export default function SignUp() {
                 <div className='w-full flex flex-col gap-[20px]'>
                   <div className='flex justify-between'>
                     <div className='w-[325px]'>
-                      {renderCompanyInput({
-                        title: '기업명',
-                        name: 'companyName',
-                      })}
+                      <RenderCompanyInput
+                        title='기업명'
+                        name='managerName'
+                        control={control}
+                      />
                     </div>
                     <div className='w-[260px]'>
-                      {renderCompanyInput({
-                        title: '업종',
-                        name: 'businessType',
-                      })}
+                      <RenderCompanyInput
+                        title='업종'
+                        name='industry'
+                        control={control}
+                      />
                     </div>
                   </div>
                   <div>
-                    {renderCompanyInput({
-                      title: '사업자 등록번호',
-                      name: 'registerNumber',
-                    })}
+                    <RenderCompanyInput
+                      title='사업자 등록번호'
+                      name='businessNumber'
+                      control={control}
+                    />
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <button className='w-full bg-blue-50 rounded-[10px] h-[50px] text-[#ffffff] font-semibold'>
+          <button
+            className={`w-full rounded-[10px] h-[50px] text-[#ffffff] font-semibold ${confirmEmail ? 'bg-blue-50' : 'bg-gray-50'}`}
+            // disabled={confirmEmail ? false : true}
+          >
             회원가입
           </button>
         </div>
