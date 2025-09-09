@@ -3,11 +3,13 @@ import ExampleDayCharts from '@/components/report/DayCharts';
 const CARDSTYLE =
   'rounded-2xl border border-black/5 bg-white/70 backdrop-blur-sm shadow-sm';
 
-export default function ReportPage({
+export default async function ReportPage({
   params,
 }: {
-  params: { paymentId: string };
+  params: Promise<{ paymentId: string }>;
 }) {
+  const { paymentId } = await params;
+
   return (
     <div className='mx-auto max-w-screen-2xl px-6  space-y-8'>
       <p className='text-center text-2xl md:text-3xl font-semibold text-[#0E2975] [text-shadow:_4px_5px_12px_rgba(0,0,0,0.15)]'>
