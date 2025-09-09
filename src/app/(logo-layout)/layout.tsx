@@ -1,5 +1,9 @@
+'use client';
+
+import Alert from '@/components/ui/Alert';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import '../globals.css';
 
 export default function LogoLayout({
@@ -7,24 +11,36 @@ export default function LogoLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <div className='h-[100vh] bg-[#F2F4F8]'>
-      <div className='w-[80vw] mx-auto relative'>
-        <header className='absolute top-[30px] inset-x-0 w-[80vw] mx-auto'>
-          <div className='flex justify-between items-center'>
-            <Link href={'/signin'}>
-              <Image
-                src='/assets/images/LOGO.png'
-                alt='로고 이미지'
-                width={120}
-                height={48}
-              />
-            </Link>
+  const [isFraud, setIsFraud] = useState<boolean>(false);
 
-            <div></div>
-          </div>
+  useEffect(() => {
+    setTimeout(() => {
+      setIsFraud(true);
+    }, 2000);
+  }, []);
+
+  return (
+    <div className='min-h-dvh bg-gradient-to-b from-[#F6F9FF] via-white to-[#EFF6FF] pb-[50px]'>
+      <div className='w-[80vw] mx-auto relative'>
+        <Alert
+          isAlert={isFraud}
+          setAlert={setIsFraud}
+          id={'2025.09.09T05:24:22Z-Visa-ocr'}
+        />
+        <header className='sticky top-0 z-10 h-[72px] w-full bg-white/50 backdrop-blur pt-[15px]'>
+          <Link
+            href='/dashboard'
+            className='w-fit h-full flex justify-between items-center'
+          >
+            <Image
+              src='/assets/images/logo.svg'
+              alt='로고 이미지'
+              width={180}
+              height={48}
+            />
+          </Link>
         </header>
-        <main className='pt-[100px] flex justify-center items-center'>
+        <main className='pt-[30px] flex justify-center items-center'>
           {children}
         </main>
       </div>

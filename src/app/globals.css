@@ -13,8 +13,6 @@ body {
   font-family: pretendard;
 }
 
-
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -71,13 +69,24 @@ body {
   }
 }
 
-
-
 @layer base {
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .card {
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+  .page-break {
+    break-after: page;
   }
 }
