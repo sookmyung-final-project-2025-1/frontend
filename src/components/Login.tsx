@@ -67,6 +67,7 @@ export default function Login() {
             />
           </div>
           <button
+            disabled={!isFilled}
             className={`w-full h-[50px] text-[#ffffff] font-semibold rounded-[10px] ${isFilled ? 'bg-blue-50' : 'bg-[#E5E5E5]'}`}
           >
             로그인
