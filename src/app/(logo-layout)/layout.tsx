@@ -29,7 +29,7 @@ export default function LogoLayout({
             className='w-fit flex justify-between items-center'
           >
             <Image
-              src='/assets/images/loho.svg'
+              src='/assets/images/logo.svg'
               alt='로고 이미지'
               width={180}
               height={48}

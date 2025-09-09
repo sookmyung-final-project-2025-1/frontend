@@ -10,7 +10,7 @@ export default function SignIn() {
       <div className='flex flex-col items-center'>
         <div className='relative w-[380px] h-[130px]'>
           <Image
-            src='/assets/images/loho.svg'
+            src='/assets/images/logo.svg'
             alt='로고 이미지'
             fill
             className='object-contain'
