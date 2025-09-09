@@ -16,17 +16,21 @@ export default function LogoLayout({
   useEffect(() => {
     setTimeout(() => {
       setIsFraud(true);
-    }, 5000);
+    }, 2000);
   }, []);
 
   return (
-    <div className='min-h-dvh bg-gradient-to-b from-[#F6F9FF] via-white to-[#EFF6FF]'>
+    <div className='min-h-dvh bg-gradient-to-b from-[#F6F9FF] via-white to-[#EFF6FF] pb-[50px]'>
       <div className='w-[80vw] mx-auto relative'>
-        <Alert isAlert={isFraud} setAlert={setIsFraud} id={1} />
-        <header className='absolute top-[30px] inset-x-0 w-[80vw] mx-auto'>
+        <Alert
+          isAlert={isFraud}
+          setAlert={setIsFraud}
+          id={'2025.09.09T05:24:22Z-Visa-ocr'}
+        />
+        <header className='sticky top-0 z-10 h-[72px] w-full bg-white/50 backdrop-blur pt-[15px]'>
           <Link
             href='/dashboard'
-            className='w-fit flex justify-between items-center'
+            className='w-fit h-full flex justify-between items-center'
           >
             <Image
               src='/assets/images/logo.svg'
@@ -36,7 +40,7 @@ export default function LogoLayout({
             />
           </Link>
         </header>
-        <main className='pt-[100px] flex justify-center items-center'>
+        <main className='pt-[30px] flex justify-center items-center'>
           {children}
         </main>
       </div>

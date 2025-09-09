@@ -1,7 +1,7 @@
 const COMMONSTYLE =
   'bg-[#ffffff] rounded-[10px] py-[20px] px-[30px] flex justify-between shadow-[2px_4px_12.5px_rgba(0,0,0,0.25)] border border-black/5 bg-white/70 backdrop-blur-sm shadow-sm hover:shadow-md transition';
 const FONTSTYLE =
-  'font-bold text-[35px] w-fit text-center flex items-center pr-[10px] [text-shadow:_1px_2px_5px_rgba(0,0,0,0.25)]';
+  'font-semibold text-[35px] w-fit text-center flex items-center pr-[10px] [text-shadow:_1px_2px_5px_rgba(0,0,0,0.25)]';
 
 export default function Dashboard() {
   return (

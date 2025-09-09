@@ -87,7 +87,7 @@ export default function MainGraph() {
             <Line
               type='monotone'
               dataKey='pv'
-              stroke='#8884d8'
+              stroke='#0E2975'
               activeDot={{ r: 8 }}
             />
             <Line type='monotone' dataKey='uv' stroke='#FF8A00' />
