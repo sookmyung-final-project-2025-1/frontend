@@ -14,7 +14,7 @@ import {
 } from 'recharts';
 
 const COMMONSTYLE =
-  'bg-[#ffffff] rounded-[10px] py-[20px] px-[25px] flex flex-col gap-[20px]';
+  'bg-[#ffffff] rounded-[10px] py-[20px] px-[25px] flex flex-col gap-[20px] border border-black/5 bg-white/70 backdrop-blur-sm shadow-sm hover:shadow-md transition';
 
 export default function MainGraph() {
   const data = [
@@ -66,7 +66,7 @@ export default function MainGraph() {
     <div className='grid grid-rows-1 grid-cols-2 gap-5 w-full h-[400px]'>
       {/* 좌측 그래프 */}
       <div className={`${COMMONSTYLE}`}>
-        <p className='font-semibold'>시간대별 평균 사기 확률</p>
+        <p className='font-semibold text-[20px]'>시간대별 평균 사기 확률</p>
         <ResponsiveContainer width='100%' height='100%'>
           <LineChart
             width={500}
@@ -90,14 +90,14 @@ export default function MainGraph() {
               stroke='#8884d8'
               activeDot={{ r: 8 }}
             />
-            <Line type='monotone' dataKey='uv' stroke='#82ca9d' />
+            <Line type='monotone' dataKey='uv' stroke='#FF8A00' />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       {/* 우측 그래프 */}
       <div className={`${COMMONSTYLE}`}>
-        <p className='font-semibold'>시간대별 사기 거래 건수</p>
+        <p className='font-semibold text-[20px]'>시간대별 사기 거래 건수</p>
         <ResponsiveContainer width='100%' height='100%'>
           <ComposedChart
             width={500}
@@ -115,8 +115,8 @@ export default function MainGraph() {
             <YAxis />
             <Tooltip />
             <Legend />
-            <Bar dataKey='uv' barSize={20} fill='#413ea0' />
-            <Line type='monotone' dataKey='uv' stroke='#ff7300' />
+            <Bar dataKey='uv' barSize={20} fill='#0E2975' />
+            <Line type='monotone' dataKey='uv' stroke='#FF8A00' />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

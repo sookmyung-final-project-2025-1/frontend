@@ -1,10 +1,6 @@
 'use client';
 
-<<<<<<< HEAD
-import { SignupType } from '@/types/signup.schema';
-=======
 import { SignupType } from '@/types/signUp.schema';
->>>>>>> b57cf00a7df1bf147abab93a8d26be839f55a521
 import { Control, Controller } from 'react-hook-form';
 import Input from '../ui/Input';
 import {
@@ -12,16 +8,10 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-<<<<<<< HEAD
-  SelectTrigger,
-  SelectValue,
-} from '../ui/Select';
-=======
   SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
->>>>>>> b57cf00a7df1bf147abab93a8d26be839f55a521
 
 type InputFieldProps = {
   title: string;
@@ -79,33 +69,20 @@ export const RenderCompanyInput = ({
           render={({ field, fieldState }) => (
             <div>
               <Select value={field.value} onValueChange={field.onChange}>
-<<<<<<< HEAD
-                <SelectTrigger className='w-[180px] h-[50px] outline-none text-[15px]'>
-=======
                 <SelectTrigger className='w-[180px] h-[50px] outline-none'>
->>>>>>> b57cf00a7df1bf147abab93a8d26be839f55a521
                   <SelectValue placeholder='업종을 선택하세요.' />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-<<<<<<< HEAD
-                    <SelectItem value='PG' className={commonSelectStyle}>
-                      PG사
-=======
                     <SelectLabel>Industry</SelectLabel>
                     <SelectItem value='PG' className={commonSelectStyle}>
                       PG
->>>>>>> b57cf00a7df1bf147abab93a8d26be839f55a521
                     </SelectItem>
                     <SelectItem value='BANK' className={commonSelectStyle}>
                       은행
                     </SelectItem>
                     <SelectItem value='CARD' className={commonSelectStyle}>
-<<<<<<< HEAD
-                      카드사
-=======
                       카드
->>>>>>> b57cf00a7df1bf147abab93a8d26be839f55a521
                     </SelectItem>
                   </SelectGroup>
                 </SelectContent>
