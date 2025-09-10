@@ -1,4 +1,5 @@
 import { EmailVerifiationResponse } from '@/types/auth-response';
+
 import {
   ConfirmVerifyEmailType,
   EmailVerificationResponseSchema,
