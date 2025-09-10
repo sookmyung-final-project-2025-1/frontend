@@ -1,33 +1,46 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const isBrowser = () => typeof window !== 'undefined';
 
-const isServer = () => typeof window === 'undefined';
+const SERVER_API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8081';
 
-// 클라쪽 in-memory accessToken
-let clientAccessToken: string | null = null;
-export const tokenStore = {
-  // 토큰 가져오기
-  get: () => (isServer() ? null : clientAccessToken),
-  // 서버에서 받아온 accessToken 설정
-  set: (t: string | null) => {
-    if (!isServer()) clientAccessToken = t;
-  },
-  // 만료시 토큰 제거
-  clear: () => {
-    if (!isServer()) clientAccessToken = null;
-  },
-};
+const PUBLIC_API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+function joinUrl(base: string, endpoint: string) {
+  const b = base.replace(/\/$/, '');
+  const e = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  return `${b}${e}`;
+}
+
+function resolveUrl(endpoint: string) {
+  if (/^https?:\/\//.test(endpoint)) return endpoint;
+
+  if (isBrowser()) {
+    return PUBLIC_API_BASE ? joinUrl(PUBLIC_API_BASE, endpoint) : endpoint;
+  }
+  return joinUrl(SERVER_API_BASE, endpoint);
+}
 
 async function safeJson(res: Response): Promise<unknown> {
   if (res.status === 204 || res.status === 205) return undefined;
   const text = await res.text();
   if (!text) return undefined;
-
   try {
-    return text ? JSON.parse(text) : null;
+    return JSON.parse(text);
   } catch {
     return text;
   }
 }
+
+// 클라쪽 in-memory accessToken
+let clientAccessToken: string | null = null;
+export const tokenStore = {
+  get: () => (isBrowser() ? clientAccessToken : null),
+  set: (t: string | null) => {
+    if (isBrowser()) clientAccessToken = t;
+  },
+  clear: () => {
+    if (isBrowser()) clientAccessToken = null;
+  },
+};
 
 // fetch 함수 호출 options
 type ExecOptions = {
@@ -64,7 +77,8 @@ async function exec({
     init.body =
       contentType === 'application/json' ? JSON.stringify(body) : body;
 
-  return fetch(`${API_BASE_URL}${endpoint}`, init);
+  const url = resolveUrl(endpoint);
+  return fetch(url, init);
 }
 
 // 에러 핸들링

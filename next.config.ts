@@ -9,8 +9,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
-        destination: `${API_PROXY_TARGET}/:path*`,
+        source: '/auth/:path*',
+        destination: `${API_PROXY_TARGET}/auth/:path*`,
       },
     ];
   },
