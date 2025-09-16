@@ -17,7 +17,7 @@ export const useConfirmEmail = () => {
         queryFn: () =>
           fetcher<void>({
             method: 'GET',
-            endpoint: `/api/auth/check-email?email=${encodeURIComponent(email)}`,
+            endpoint: `/proxy/auth/check-email?email=${encodeURIComponent(email)}`,
             authorization: false,
           }),
         staleTime: 0,

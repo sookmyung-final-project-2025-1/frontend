@@ -32,7 +32,7 @@ export const useConfidenceQuery = (args: UseConfidenceQueryArgs) => {
   return useApiQuery<ConfidenceResponse>({
     queryKey: ['model', 'confidence', startTime, endTime, period],
     queryOptions: {
-      endpoint: `/api/model/confidence?${condfidenceParameters}`,
+      endpoint: `/proxy/model/confidence?${condfidenceParameters}`,
       authorization: true,
     },
     fetchOptions: { enabled: !!isEnabled },

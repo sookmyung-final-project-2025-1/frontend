@@ -10,7 +10,7 @@ export const useHealthQuery = () =>
   useApiQuery<HealthResponse>({
     queryKey: ['health'],
     queryOptions: {
-      endpoint: '/api/dashboard/system-health',
+      endpoint: '/proxy/dashboard/system-health',
       authorization: false,
     },
     fetchOptions: { staleTime: 0 },

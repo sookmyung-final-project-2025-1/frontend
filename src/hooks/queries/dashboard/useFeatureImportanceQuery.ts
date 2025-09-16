@@ -7,7 +7,7 @@ export const useFeatureImportanceQuery = (sampleSize: number) =>
   useApiQuery<FeatureImportanceResponse>({
     queryKey: ['model', 'feature-importance'],
     queryOptions: {
-      endpoint: `/api/model/feature?sampleSize=${sampleSize}`,
+      endpoint: `/proxy/model/feature?sampleSize=${sampleSize}`,
       authorization: true,
     },
     fetchOptions: {

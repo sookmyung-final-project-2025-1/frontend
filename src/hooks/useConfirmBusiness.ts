@@ -12,7 +12,7 @@ export const useConfirmBusiness = () => {
         queryFn: () =>
           fetcher<void>({
             method: 'GET',
-            endpoint: `/api/auth/check-business?businessNumber=${encodeURIComponent(bn)}`,
+            endpoint: `/proxy/auth/check-business?businessNumber=${encodeURIComponent(bn)}`,
             authorization: false,
           }),
         staleTime: 0,

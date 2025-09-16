@@ -18,7 +18,7 @@ export type WeightsRequest = {
 export const useSaveWeightsMutation = () =>
   useApiMutation<WeightsResponse, WeightsRequest>({
     method: 'PUT',
-    endpoint: '/api/model/weights',
+    endpoint: '/proxy/model/weights',
     authorization: false,
     body: (v) => v,
     invalidateKeys: [QUERY_KEYS.weight],
@@ -28,7 +28,7 @@ export const useGetWeight = () =>
   useApiQuery<WeightsResponse>({
     queryKey: QUERY_KEYS.weight,
     queryOptions: {
-      endpoint: '/api/model/weights',
+      endpoint: '/proxy/model/weights',
       authorization: true,
     },
   });

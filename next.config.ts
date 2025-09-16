@@ -1,17 +1,17 @@
-import { NextConfig } from 'next';
+// next.config.ts
+import type { NextConfig } from 'next';
 
-const API_PROXY_TARGET = process.env.API_PROXY_TARGET;
+const API_BASE = process.env.API_BASE_URL?.replace(/\/+$/, '');
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
   async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${API_PROXY_TARGET}/api/:path*`,
-      },
-    ];
+    if (!API_BASE || !/^https?:\/\//.test(API_BASE)) {
+      console.warn('[next.config] API_BASE invalid; skip rewrites');
+      return [];
+    }
+    return [{ source: '/proxy/:path*', destination: `${API_BASE}/:path*` }];
   },
 };
 
