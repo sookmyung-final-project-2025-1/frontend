@@ -1,9 +1,30 @@
+// next.config.ts
+import type { NextConfig } from 'next';
+import path from 'path';
+
 const API_BASE = process.env.API_BASE?.replace(/\/+$/, '');
 
-const nextConfig = {
+const nextConfig: NextConfig = {
+  reactStrictMode: true,
+
   async rewrites() {
-    if (!API_BASE) return [];
+    if (!API_BASE || !/^https?:\/\//.test(API_BASE)) {
+      console.warn('[next.config] API_BASE invalid; skip rewrites');
+      return [];
+    }
     return [{ source: '/proxy/:path*', destination: `${API_BASE}/:path*` }];
   },
+
+  webpack: (config) => {
+    // src/index.wasm 참조를 강제로 무시
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...(config.resolve.alias ?? {}),
+      [path.resolve(process.cwd(), 'src/index.wasm')]: false,
+    };
+
+    return config;
+  },
 };
+
 export default nextConfig;
