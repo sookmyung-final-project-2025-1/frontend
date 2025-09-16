@@ -3,14 +3,6 @@ import {
   useStatsHourlyQuery,
   UseStatsHourlyQueryArgs,
 } from '@/hooks/queries/dashboard/useStatsHourlyQuery';
-import {
-  Area,
-  AreaChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 
 export default function ProbChart({
   range,
@@ -26,7 +18,7 @@ export default function ProbChart({
           시간대별 사기확률 · 건수
         </div>
         <div className='h-64'>
-          <ResponsiveContainer width='100%' height='100%'>
+          {/* <ResponsiveContainer width='100%' height='100%'>
             <AreaChart data={data}>
               <XAxis dataKey='t' hide />
               <YAxis />
@@ -38,7 +30,7 @@ export default function ProbChart({
                 strokeOpacity={1}
               />
             </AreaChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer> */}
         </div>
       </div>
     </div>
