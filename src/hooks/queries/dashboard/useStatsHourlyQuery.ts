@@ -17,7 +17,7 @@ export const useStatsHourlyQuery = (args: UseStatsHourlyQueryArgs) => {
   return useApiQuery<UseStatsHourlyQueryArgs>({
     queryKey: ['stats', 'hourly'],
     queryOptions: {
-      endpoint: `/api/dashboard/stats/hourly?${hourlyParameters}`,
+      endpoint: `/proxy/dashboard/stats/hourly?${hourlyParameters}`,
       authorization: true,
     },
     fetchOptions: { enabled: !!isEnabled, staleTime: 0 },
