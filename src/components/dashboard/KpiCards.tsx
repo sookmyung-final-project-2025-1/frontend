@@ -3,10 +3,10 @@ import { Kpi } from '@/hooks/queries/dashboard/useKpiQuery';
 
 export default function KpiCards({ kpi }: { kpi?: Kpi | null }) {
   const items = [
-    { label: '신규 유저/시간', value: kpi?.newUsersPerHour ?? '-' },
-    { label: '전체 유저', value: kpi?.totalUsers ?? '-' },
-    { label: 'Throughput', value: kpi?.throughput ?? '-' },
-    { label: 'Latency p95', value: kpi?.latencyP95 ?? '-' },
+    { label: '신규 유저/시간', value: kpi?.additionProp1 ?? '-' },
+    { label: '전체 유저', value: kpi?.additionProp1 ?? '-' },
+    { label: 'Throughput', value: kpi?.additionProp1 ?? '-' },
+    { label: 'Latency p95', value: kpi?.additionProp1 ?? '-' },
   ];
 
   return (
@@ -18,7 +18,7 @@ export default function KpiCards({ kpi }: { kpi?: Kpi | null }) {
         >
           <div className='p-4'>
             <div className='text-xs text-slate-400'>{k.label}</div>
-            <div className='text-xl mt-1'>{k.value}</div>
+            <div className='text-xl mt-1'>{k.label}</div>
           </div>
         </div>
       ))}
