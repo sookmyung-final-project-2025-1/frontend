@@ -1,11 +1,12 @@
 import { EmailVerifiationResponse } from '@/types/auth-response';
+
 import {
   ConfirmVerifyEmailType,
   EmailVerificationResponseSchema,
   SendVerifyEmailType,
   SignupRequest,
   SignupResponse,
-} from '@/types/signUp.schema';
+} from '@/types/signup.schema';
 import { useRouter } from 'next/navigation';
 import { useApiMutation } from './useApi';
 

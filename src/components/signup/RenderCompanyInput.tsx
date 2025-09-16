@@ -1,6 +1,6 @@
 'use client';
 
-import { SignupType } from '@/types/signUp.schema';
+import { SignupType } from '@/types/signup.schema';
 import { Control, Controller } from 'react-hook-form';
 import Input from '../ui/Input';
 import {
@@ -8,7 +8,6 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
@@ -69,20 +68,19 @@ export const RenderCompanyInput = ({
           render={({ field, fieldState }) => (
             <div>
               <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger className='w-[180px] h-[50px] outline-none'>
+                <SelectTrigger className='w-[180px] h-[50px] outline-none text-[15px]'>
                   <SelectValue placeholder='업종을 선택하세요.' />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectLabel>Industry</SelectLabel>
                     <SelectItem value='PG' className={commonSelectStyle}>
-                      PG
+                      PG사
                     </SelectItem>
                     <SelectItem value='BANK' className={commonSelectStyle}>
                       은행
                     </SelectItem>
                     <SelectItem value='CARD' className={commonSelectStyle}>
-                      카드
+                      카드사
                     </SelectItem>
                   </SelectGroup>
                 </SelectContent>
