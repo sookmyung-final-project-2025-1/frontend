@@ -2,7 +2,7 @@
 import type { NextConfig } from 'next';
 import path from 'path';
 
-const API_BASE = process.env.API_BASE?.replace(/\/+$/, '');
+const API_BASE = process.env.API_BASE_URL?.replace(/\/+$/, '');
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,

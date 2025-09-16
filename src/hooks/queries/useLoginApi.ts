@@ -8,7 +8,7 @@ export const useLogin = () => {
 
   return useApiMutation<LoginResponseType, LoginType>({
     method: 'POST',
-    endpoint: '/auth/login',
+    endpoint: '/proxy/auth/login',
     authorization: false,
     onSuccess: (res) => {
       if (res?.accessToken) {

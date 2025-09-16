@@ -9,7 +9,7 @@ export type ThresholdResponse = {
 export const useSaveThresholdMutation = () =>
   useApiMutation<ThresholdResponse, number>({
     method: 'PUT',
-    endpoint: (threshold) => `/api/model/threshold?threshold=${threshold}`,
+    endpoint: (threshold) => `/proxy/model/threshold?threshold=${threshold}`,
     authorization: true,
     body: (v) => v,
   });
