@@ -2,6 +2,7 @@
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+import https from 'https';
 import { NextRequest, NextResponse } from 'next/server';
 
 // /api 자동 보정
@@ -12,25 +13,15 @@ function normalizeBase(raw?: string | null) {
 }
 const API = normalizeBase(process.env.API_BASE_URL);
 
-// ALLOW_INSECURE_TLS=1이면 전역 dispatcher로 TLS 검증 우회
-let tlsReady: Promise<void> | null = null;
-function ensureInsecureTLSOnce() {
-  if (process.env.ALLOW_INSECURE_TLS !== '1') return Promise.resolve();
-  if (!tlsReady) {
-    tlsReady = (async () => {
-      const { Agent, setGlobalDispatcher } = await import('undici');
-      const servername = process.env.API_SNI_HOST;
-      const agent = new Agent({
-        connect: {
-          rejectUnauthorized: false,
-          ...(servername ? { servername } : {}),
-        },
-      });
-      setGlobalDispatcher(agent);
-    })();
-  }
-  return tlsReady;
-}
+// TLS 검증 우회 에이전트 생성
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false, // 자체 서명 인증서 허용
+  ...(process.env.API_SNI_HOST
+    ? {
+        servername: process.env.API_SNI_HOST,
+      }
+    : {}),
+});
 
 const HOP = new Set([
   'connection',
@@ -58,10 +49,11 @@ function pickReqHeaders(src: Headers) {
     const v = src.get(k);
     if (v) h.set(k, v);
   }
-  h.set('accept-encoding', 'identity'); // 디코딩 mismatch 방지
+  h.set('accept-encoding', 'identity');
   if (process.env.API_SNI_HOST) h.set('host', process.env.API_SNI_HOST!);
   return h;
 }
+
 function filterResHeaders(src: Headers) {
   const h = new Headers();
   src.forEach((v, k) => {
@@ -77,23 +69,48 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
 
-  await ensureInsecureTLSOnce(); // ← 운영에서도 적용
-
   const upstreamUrl = `${API}/auth/check-email${req.nextUrl.search}`;
+
   try {
     const res = await fetch(upstreamUrl, {
       method: 'GET',
       headers: pickReqHeaders(req.headers),
       cache: 'no-store',
-      redirect: 'follow', // 프록시가 리다이렉트를 따라감 → CORS 회피
+      redirect: 'follow',
+      // @ts-ignore - Node.js 환경에서만 작동
+      agent: upstreamUrl.startsWith('https:') ? httpsAgent : undefined,
     });
 
+    // 응답 정보도 로그에 추가
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📥 API 응답:');
+      console.log('Status:', res.status);
+      console.log(
+        'Response Headers:',
+        Object.fromEntries(res.headers.entries())
+      );
+    }
+
     const buf = Buffer.from(await res.arrayBuffer());
+
+    // 에러 응답인 경우 내용도 출력
+    if (res.status >= 400 && process.env.NODE_ENV === 'development') {
+      const responseText = buf.toString('utf8');
+      console.log('Error Response Body:', responseText);
+    }
+
     return new NextResponse(buf, {
       status: res.status,
       headers: filterResHeaders(res.headers),
     });
   } catch (e: any) {
+    console.error('Fetch error details:', {
+      message: e?.message,
+      code: e?.code,
+      cause: e?.cause,
+      url: upstreamUrl,
+    });
+
     return NextResponse.json(
       {
         message: 'Upstream fetch failed',
