@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
 
-  const upstreamUrl = `${API_BASE}/auth/check-email${req.nextUrl.search}`;
+  const upstreamUrl = `${API_BASE}/api/auth/check-email${req.nextUrl.search}`;
   const headers = pickReqHeaders(req.headers);
   if (process.env.API_SNI_HOST) headers.set('host', process.env.API_SNI_HOST!);
 
