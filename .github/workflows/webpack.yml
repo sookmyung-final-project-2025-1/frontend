@@ -1,28 +1,26 @@
-name: NodeJS with Webpack
-
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
+name: CI
+on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x, 22.x]
-
+    # 🔴 여기서만 working-directory 한 번만 지정하세요 (중복 금지)
+    defaults:
+      run:
+        working-directory: ./frontend   # ← 프로젝트 실제 루트(예: my-app이면 ./my-app)
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
-    - name: Build
-      run: |
-        npm install
-        npx webpack
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: ./frontend/pnpm-lock.yaml
+
+      - run: pnpm install
+
+      # ⬇️ Next 빌드만! webpack 커맨드 절대 실행 금지
+      - run: pnpm build
