@@ -1,5 +1,5 @@
 import { useConfirmEmailCode } from '@/hooks/queries/useSignupApi';
-import { ConfirmVerifyEmailSchema } from '@/types/signUp.schema';
+import { ConfirmVerifyEmailSchema } from '@/types/signup.schema';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import z from 'zod';

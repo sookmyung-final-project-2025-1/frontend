@@ -62,7 +62,7 @@ export const SignupSchema = z
       .max(20, { message: '비밀번호는 20자 이하여야 합니다.' }),
     managerName: z.string().min(2, { message: '기업명을 입력해주세요.' }),
     industry: z.enum(INDUSTRIES, {
-      message: '업종은 PG/BANK/CARD 중 하나여야 합니다.',
+      message: '업종을 선택해주세요.',
     }),
   })
   .refine((v) => v.password === v.passwordConfirm, {

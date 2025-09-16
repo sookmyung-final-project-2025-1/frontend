@@ -8,10 +8,12 @@ import { useConfirmBusiness } from '@/hooks/useConfirmBusiness';
 import { useConfirmEmail } from '@/hooks/useConfirmEmail';
 import {
   INDUSTRIES,
+  SendVerifyEmailSchema,
   SignupRequestSchema,
   SignupSchema,
   SignupType,
-} from '@/types/signUp.schema';
+} from '@/types/signup.schema';
+
 import { zodResolver } from '@hookform/resolvers/zod';
 import Image from 'next/image';
 import { useState } from 'react';
@@ -51,7 +53,8 @@ export default function SignUp() {
     shouldFocusError: true,
   });
 
-  const { control, handleSubmit, getValues } = methods;
+  const { control, handleSubmit, getValues, trigger, setFocus, setValue } =
+    methods;
 
   const signUp = useSignup();
   const { run: checkEmail } = useConfirmEmail();
@@ -148,7 +151,15 @@ export default function SignUp() {
             type='button'
             onClick={async () => {
               try {
-                const email = getValues('email').trim();
+                const ok = await trigger('email');
+                if (!ok) {
+                  setFocus('email');
+                  return;
+                }
+
+                const { email } = SendVerifyEmailSchema.parse({
+                  email: getValues('email'),
+                });
                 setOpenConfirm(true);
 
                 const { success, message, expirationSeconds } =
@@ -166,6 +177,8 @@ export default function SignUp() {
               } catch {
                 setOpenConfirm(false);
                 alert('이메일 인증 요청에 실패했습니다. 다시 시도해 주세요.');
+                setValue('email', '');
+                setFocus('email');
               }
             }}
             disabled={confirmEmail ? confirmEmail : undefined}
@@ -245,7 +258,7 @@ export default function SignUp() {
           </div>
           <button
             className={`w-full rounded-[10px] h-[50px] text-[#ffffff] font-semibold ${confirmEmail ? 'bg-blue-50' : 'bg-gray-50'}`}
-            // disabled={confirmEmail ? false : true}
+            disabled={confirmEmail ? false : true}
           >
             회원가입
           </button>

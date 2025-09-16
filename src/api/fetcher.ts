@@ -1,6 +1,8 @@
+
 const SERVER_API = process.env.API_PROXY_TARGET;
 
-const isServer = () => typeof window === 'undefined';
+
+const SERVER_API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8081';
 
 function buildUrl(endpoint: string) {
   if (isServer()) {
@@ -24,17 +26,29 @@ export const tokenStore = {
   },
 };
 
+
 async function safeJson(res: Response): Promise<unknown> {
   if (res.status === 204 || res.status === 205) return undefined;
   const text = await res.text();
   if (!text) return undefined;
-
   try {
-    return text ? JSON.parse(text) : null;
+    return JSON.parse(text);
   } catch {
     return text;
   }
 }
+
+// 클라쪽 in-memory accessToken
+let clientAccessToken: string | null = null;
+export const tokenStore = {
+  get: () => (isBrowser() ? clientAccessToken : null),
+  set: (t: string | null) => {
+    if (isBrowser()) clientAccessToken = t;
+  },
+  clear: () => {
+    if (isBrowser()) clientAccessToken = null;
+  },
+};
 
 // fetch 함수 호출 options
 type ExecOptions = {
@@ -72,6 +86,7 @@ async function exec({
   if (body)
     init.body =
       contentType === 'application/json' ? JSON.stringify(body) : body;
+
 
   return fetch(url, init);
 }
