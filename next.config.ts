@@ -1,6 +1,5 @@
 // next.config.ts
 import type { NextConfig } from 'next';
-import path from 'path';
 
 const API_BASE = process.env.API_BASE_URL?.replace(/\/+$/, '');
 
@@ -13,17 +12,6 @@ const nextConfig: NextConfig = {
       return [];
     }
     return [{ source: '/proxy/:path*', destination: `${API_BASE}/:path*` }];
-  },
-
-  webpack: (config) => {
-    // src/index.wasm 참조를 강제로 무시
-    config.resolve = config.resolve || {};
-    config.resolve.alias = {
-      ...(config.resolve.alias ?? {}),
-      [path.resolve(process.cwd(), 'src/index.wasm')]: false,
-    };
-
-    return config;
   },
 };
 

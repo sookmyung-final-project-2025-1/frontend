@@ -83,7 +83,6 @@ export async function GET(req: NextRequest) {
     method: 'GET',
     headers,
     cache: 'no-store',
-    // ✅ 서버가 리다이렉트를 따라감 → 브라우저에 30x 노출 안 됨 → CORS 안 터짐
     redirect: 'follow',
   };
   const dispatcher = await makeDispatcher();
@@ -108,8 +107,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-export const POST = GET;
-export const PUT = GET;
-export const PATCH = GET;
-export const DELETE = GET;
