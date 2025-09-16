@@ -1,6 +1,13 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const SERVER_API = process.env.API_PROXY_TARGET;
 
 const isServer = () => typeof window === 'undefined';
+
+function buildUrl(endpoint: string) {
+  if (isServer()) {
+    return `${SERVER_API}${endpoint}`;
+  }
+  return `${endpoint}`;
+}
 
 // 클라쪽 in-memory accessToken
 let clientAccessToken: string | null = null;
@@ -60,11 +67,13 @@ async function exec({
     cache: 'no-store',
   };
 
+  const url = buildUrl(endpoint);
+
   if (body)
     init.body =
       contentType === 'application/json' ? JSON.stringify(body) : body;
 
-  return fetch(`${API_BASE_URL}${endpoint}`, init);
+  return fetch(url, init);
 }
 
 // 에러 핸들링
@@ -121,6 +130,8 @@ export async function fetcher<T>({
         rawBody: err.body,
       });
     }
+
+    throw err;
   }
 
   // data 타입을 T로 고정 (schema 검증)

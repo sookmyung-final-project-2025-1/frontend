@@ -13,7 +13,7 @@ import { useApiMutation } from './useApi';
 export const useSendEmailCode = () => {
   return useApiMutation<EmailVerifiationResponse, SendVerifyEmailType>({
     method: 'POST',
-    endpoint: '/auth/send-verification-code',
+    endpoint: '/api/auth/send-verification-code',
     authorization: false,
     responseSchema: EmailVerificationResponseSchema,
   });
@@ -27,7 +27,7 @@ export const useConfirmEmailCode = ({
 }) => {
   return useApiMutation<EmailVerifiationResponse, ConfirmVerifyEmailType>({
     method: 'POST',
-    endpoint: '/auth/verify-email',
+    endpoint: '/api/auth/verify-email',
     authorization: false,
     onSuccess: () => {
       onSuccess();
@@ -45,7 +45,7 @@ export const useSignup = () => {
 
   return useApiMutation<SignupResponse, SignupRequest>({
     method: 'POST',
-    endpoint: '/auth/signup',
+    endpoint: '/api/auth/signup',
     authorization: false,
     onSuccess: () => {
       router.replace('/signin');

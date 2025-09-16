@@ -66,19 +66,17 @@ export default function SignUp() {
       businessNumber: bn,
     };
 
-    signUp.mutate(SignupRequestSchema.parse(payload));
-
     // 사업자 등록번호 중복 확인
-    // try {
-    //   const ok = await checkBusiness(bn);
-    //   if (!ok) {
-    //     alert('이미 등록된 사업자 등록 번호입니다.');
-    //     return;
-    //   }
-    //   signUp.mutate(data);
-    // } catch (e) {
-    //   alert('사업자번호 확인 중 오류가 발생했습니다.');
-    // }
+    try {
+      const ok = await checkBusiness(bn);
+      if (!ok) {
+        alert('이미 등록된 사업자 등록 번호입니다.');
+        return;
+      }
+      signUp.mutate(SignupRequestSchema.parse(payload));
+    } catch (e) {
+      alert('사업자번호 확인 중 오류가 발생했습니다.');
+    }
   };
 
   const renderUserInputField = ({ title, name }: InputFieldProps) => {
