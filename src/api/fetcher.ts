@@ -1,23 +1,31 @@
-const isBrowser = () => typeof window !== 'undefined';
+
+const SERVER_API = process.env.API_PROXY_TARGET;
+
 
 const SERVER_API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8081';
 
-const PUBLIC_API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
-
-function joinUrl(base: string, endpoint: string) {
-  const b = base.replace(/\/$/, '');
-  const e = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return `${b}${e}`;
-}
-
-function resolveUrl(endpoint: string) {
-  if (/^https?:\/\//.test(endpoint)) return endpoint;
-
-  if (isBrowser()) {
-    return PUBLIC_API_BASE ? joinUrl(PUBLIC_API_BASE, endpoint) : endpoint;
+function buildUrl(endpoint: string) {
+  if (isServer()) {
+    return `${SERVER_API}${endpoint}`;
   }
-  return joinUrl(SERVER_API_BASE, endpoint);
+  return `${endpoint}`;
 }
+
+// 클라쪽 in-memory accessToken
+let clientAccessToken: string | null = null;
+export const tokenStore = {
+  // 토큰 가져오기
+  get: () => (isServer() ? null : clientAccessToken),
+  // 서버에서 받아온 accessToken 설정
+  set: (t: string | null) => {
+    if (!isServer()) clientAccessToken = t;
+  },
+  // 만료시 토큰 제거
+  clear: () => {
+    if (!isServer()) clientAccessToken = null;
+  },
+};
+
 
 async function safeJson(res: Response): Promise<unknown> {
   if (res.status === 204 || res.status === 205) return undefined;
@@ -73,11 +81,13 @@ async function exec({
     cache: 'no-store',
   };
 
+  const url = buildUrl(endpoint);
+
   if (body)
     init.body =
       contentType === 'application/json' ? JSON.stringify(body) : body;
 
-  const url = resolveUrl(endpoint);
+
   return fetch(url, init);
 }
 
@@ -135,6 +145,8 @@ export async function fetcher<T>({
         rawBody: err.body,
       });
     }
+
+    throw err;
   }
 
   // data 타입을 T로 고정 (schema 검증)

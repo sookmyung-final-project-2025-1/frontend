@@ -4,4 +4,13 @@ export const QUERY_KEYS = {
     'businessNumber',
     businessNumber,
   ],
+  // dashboard
+  timeState: ['time', 'state'] as const,
+  metricsKpi: (window: string) => ['metrics', 'kpi', window] as const,
+  metricsConfidence: (range: string) =>
+    ['metrics', 'confidence', range] as const,
+  featureImportance: ['metrics', 'feature-importance'] as const,
+  seriesProb: ['series', 'prob'] as const,
+  health: ['health'] as const,
+  weight: ['weight'] as const,
 } as const;

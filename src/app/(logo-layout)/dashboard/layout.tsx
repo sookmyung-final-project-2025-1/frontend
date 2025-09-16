@@ -1,12 +1,10 @@
 'use client';
 
 import Alert from '@/components/ui/Alert';
-import Image from 'next/image';
-import Link from 'next/link';
+import { Link } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import '../globals.css';
 
-export default function LogoLayout({
+export default function DashboardLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -20,7 +18,7 @@ export default function LogoLayout({
   }, []);
 
   return (
-    <div className='min-h-dvh bg-gradient-to-b from-[#F6F9FF] via-white to-[#EFF6FF] pb-[50px]'>
+    <div className=' bg-gradient-to-b from-slate-950 to-slate-900 text-slate-100'>
       <div className='w-[80vw] mx-auto relative'>
         <Alert
           isAlert={isFraud}
@@ -32,7 +30,7 @@ export default function LogoLayout({
             href='/dashboard'
             className='w-fit h-full flex justify-between items-center'
           >
-            <Image
+            <img
               src='/assets/images/logo.svg'
               alt='로고 이미지'
               width={180}
@@ -40,7 +38,7 @@ export default function LogoLayout({
             />
           </Link>
         </header>
-        <main className='pt-[30px] flex justify-center items-center'>
+        <main className='w-full pt-[30px] flex justify-center items-center'>
           {children}
         </main>
       </div>

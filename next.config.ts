@@ -1,7 +1,6 @@
 import { NextConfig } from 'next';
 
-const API_PROXY_TARGET =
-  process.env.API_PROXY_TARGET || 'http://localhost:8081';
+const API_PROXY_TARGET = process.env.API_PROXY_TARGET;
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -9,8 +8,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/auth/:path*',
-        destination: `${API_PROXY_TARGET}/auth/:path*`,
+        source: '/api/:path*',
+        destination: `${API_PROXY_TARGET}/api/:path*`,
       },
     ];
   },
