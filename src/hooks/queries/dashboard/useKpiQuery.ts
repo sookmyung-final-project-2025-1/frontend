@@ -23,7 +23,7 @@ export const useKpiQuery = (args: UseKpiQueryArgs) => {
   return useApiQuery<Kpi>({
     queryKey: ['dashboard', 'kpi', startTime, endTime],
     queryOptions: {
-      endpoint: `/proxy/dashboard/kpis?${kpiParameters}}`,
+      endpoint: `/proxy/dashboard/kpis?${kpiParameters}`,
       authorization: true,
     },
     fetchOptions: { enabled: isEnabled, staleTime: 0 },

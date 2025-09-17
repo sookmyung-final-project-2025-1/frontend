@@ -12,8 +12,12 @@ import KpiCards from '@/components/dashboard/KpiCards';
 import ProbChart from '@/components/dashboard/ProbChart';
 import TablePlaceholder from '@/components/dashboard/TablePlaceholder';
 import ThresholdSettings from '@/components/dashboard/ThresholdSettings';
-import TopBar from '@/components/dashboard/TopBar';
 import WeightsSettings from '@/components/dashboard/WeightsSettings';
+
+import StreamingDetectionChart from '@/components/dashboard/StreamingDetectionChart';
+import StreamingTopBar from '@/components/dashboard/StreamingTopBar';
+
+type TimeRange = '24h' | '7d' | '30d';
 
 function DashboardInner() {
   // 컨텍스트에서 모든 쿼리/액션 접근
@@ -35,7 +39,11 @@ function DashboardInner() {
   const [playing, setPlaying] = useState<boolean>(false);
   const [virtualTime, setVirtualTime] = useState<string>('');
 
-  // 모델 weights & threshold
+  // 스트리밍 관련 상태들
+  const [timeRange, setTimeRange] = useState<TimeRange>('24h');
+  const [currentPosition, setCurrentPosition] = useState<number>(100); // 시작을 100%로 설정
+
+  // 모델 weights & threshold - 기본값
   const [weights, setWeights] = useState<Record<string, number>>({
     lgbm: 0.34,
     xgb: 0.33,
@@ -54,6 +62,71 @@ function DashboardInner() {
     };
   }, [weights]);
 
+  // 시간 범위별 총 시간 (시간 단위)
+  const totalDuration = useMemo(() => {
+    switch (timeRange) {
+      case '24h':
+        return 24;
+      case '7d':
+        return 168; // 7 * 24
+      case '30d':
+        return 720; // 30 * 24
+      default:
+        return 24;
+    }
+  }, [timeRange]);
+
+  // 스트리밍 데이터 생성 (실제로는 컨텍스트에서 관리되어야 함)
+  const mockStreamingData = useMemo(() => {
+    const data = [];
+    const now = new Date();
+    let hours: number;
+
+    switch (timeRange) {
+      case '24h':
+        hours = 24;
+        break;
+      case '7d':
+        hours = 168;
+        break;
+      case '30d':
+        hours = 720;
+        break;
+      default:
+        hours = 24;
+    }
+
+    const startTime = new Date(now.getTime() - hours * 60 * 60 * 1000);
+    const dataPoints = Math.min(1000, hours * 6);
+
+    for (let i = 0; i < dataPoints; i++) {
+      const timestamp = new Date(
+        startTime.getTime() +
+          (i / dataPoints) * (now.getTime() - startTime.getTime())
+      );
+
+      const baseScore = Math.random();
+      const isAnomaly = Math.random() > 0.9;
+      const score = isAnomaly ? Math.random() * 0.3 + 0.7 : baseScore * 0.6;
+
+      data.push({
+        timestamp: timestamp.toISOString(),
+        score: score,
+        prediction: (score >= threshold ? 'fraud' : 'normal') as
+          | 'fraud'
+          | 'normal',
+        confidence: Math.random() * 0.3 + 0.7,
+        models: {
+          lgbm: Math.random() * 0.4 + 0.2,
+          xgb: Math.random() * 0.4 + 0.2,
+          cat: Math.random() * 0.4 + 0.2,
+        },
+      });
+    }
+
+    return data;
+  }, [timeRange, threshold]);
+
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(''), 3000);
@@ -64,21 +137,24 @@ function DashboardInner() {
   const onPause = () => setPlaying(false);
   const onSeek = (iso: string) => setVirtualTime(iso);
 
-  // 시간 범위 변경 핸들러들
-  const handleTimeRangeChange = (range: 'last24h' | 'last7d' | 'last30d') => {
+  // 스트리밍 시간 범위 변경 - 기존 컨텍스트 actions 사용
+  const handleTimeRangeChange = (range: TimeRange) => {
+    setTimeRange(range);
+    setCurrentPosition(100); // 최신 시점으로 이동
+
     const now = new Date();
     let startTime: string;
 
     switch (range) {
-      case 'last24h':
+      case '24h':
         startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
         break;
-      case 'last7d':
+      case '7d':
         startTime = new Date(
           now.getTime() - 7 * 24 * 60 * 60 * 1000
         ).toISOString();
         break;
-      case 'last30d':
+      case '30d':
         startTime = new Date(
           now.getTime() - 30 * 24 * 60 * 60 * 1000
         ).toISOString();
@@ -87,22 +163,17 @@ function DashboardInner() {
 
     const endTime = now.toISOString();
 
-    // 모든 범위 업데이트
+    // 기존 컨텍스트의 actions 사용
     actions.setKpiRange({ startTime, endTime });
     actions.setConfidenceRange({
       startTime,
       endTime,
-      period:
-        range === 'last24h'
-          ? 'hourly'
-          : range === 'last7d'
-            ? 'daily'
-            : 'weekly',
+      period: range === '24h' ? 'hourly' : range === '7d' ? 'daily' : 'weekly',
     });
     actions.setSeriesProbRange({ startTime, endTime });
   };
 
-  // API 액션들
+  // 기존 컨텍스트의 API 액션들 사용
   const onSaveWeights = async () => {
     try {
       await actions.saveWeights(weights);
@@ -145,100 +216,79 @@ function DashboardInner() {
 
   return (
     <div className='min-h-screen py-6 space-y-6 w-full'>
-      {/* 상단 바 - 시간 범위 선택 추가 */}
-      <div className='flex justify-between items-center'>
-        <TopBar
-          playing={playing}
-          speed={speed}
-          online={online}
-          virtualTime={virtualTime}
-          onPlay={onPlay}
-          onPause={onPause}
-          onSpeedChange={setSpeed}
-          onSeek={onSeek}
-        />
+      {/* 새로운 스트리밍 컨트롤 TopBar */}
+      <StreamingTopBar
+        playing={playing}
+        speed={speed}
+        online={online}
+        virtualTime={virtualTime}
+        onPlay={onPlay}
+        onPause={onPause}
+        onSpeedChange={setSpeed}
+        onSeek={onSeek}
+        timeRange={timeRange}
+        onTimeRangeChange={handleTimeRangeChange}
+        currentPosition={currentPosition}
+        onPositionChange={setCurrentPosition}
+        totalDuration={totalDuration}
+        onRefresh={onRefreshAll}
+        loading={loading.any}
+      />
 
-        {/* 시간 범위 선택 버튼들 */}
-        <div className='flex space-x-2'>
-          <button
-            onClick={() => handleTimeRangeChange('last24h')}
-            className='px-3 py-1 text-sm border border-slate-600 rounded hover:bg-slate-700'
-            disabled={loading.any}
-          >
-            24시간
-          </button>
-          <button
-            onClick={() => handleTimeRangeChange('last7d')}
-            className='px-3 py-1 text-sm border border-slate-600 rounded hover:bg-slate-700'
-            disabled={loading.any}
-          >
-            7일
-          </button>
-          <button
-            onClick={() => handleTimeRangeChange('last30d')}
-            className='px-3 py-1 text-sm border border-slate-600 rounded hover:bg-slate-700'
-            disabled={loading.any}
-          >
-            30일
-          </button>
-          <button
-            onClick={onRefreshAll}
-            className='px-3 py-1 text-sm bg-blue-600 rounded hover:bg-blue-700'
-            disabled={loading.any}
-          >
-            {loading.any ? '새로고침 중...' : '새로고침'}
-          </button>
-        </div>
-      </div>
       {/* 에러 상태 표시 */}
       {error.any && (
         <div className='bg-red-900 border border-red-700 rounded p-3 text-red-200'>
           일부 데이터를 불러오는 중 오류가 발생했습니다.
         </div>
       )}
+
+      {/* 스트리밍 탐지 결과 차트 */}
+      <StreamingDetectionChart
+        data={mockStreamingData}
+        playing={playing}
+        currentPosition={currentPosition}
+        threshold={threshold}
+        timeRange={timeRange}
+        virtualTime={virtualTime}
+      />
+
       {/* KPI 카드 */}
-      {/* <KpiCards kpi={kpi ?? null} loading={loading.kpi} /> */}{' '}
       <KpiCards kpi={kpi ?? null} />
-      {/* 차트 그리드 */}
+
+      {/* 기존 차트 그리드 */}
       <div className='grid grid-cols-1 xl:grid-cols-3 gap-4'>
-        {/* <ProbChart data={seriesProb ?? []} loading={loading.seriesProb} /> */}
         <ProbChart range={actions.seriesProbRange} />
-        <ConfidenceChart
-          data={confidence}
-          // loading={loading.confidence}
-          // onRangeChange={actions.setConfidenceRange}
-          // currentRange={actions.confidenceRange}
-        />
+        <ConfidenceChart data={confidence} />
       </div>
+
       {/* 설정 그리드 */}
       <div className='grid grid-cols-1 xl:grid-cols-2 gap-4'>
-        <FeatureImportanceChart
-          data={featureImportance}
-          // loading={loading.featureImportance}
-        />
+        <FeatureImportanceChart data={featureImportance} />
         <WeightsSettings
           weights={weights}
           normalized={normalized}
           onChange={handleWeightChange}
           onSave={onSaveWeights}
           onReset={resetWeights}
-          // saving={actions.savingWeights}
         />
       </div>
+
       {/* 임계치 설정 */}
       <ThresholdSettings
         threshold={threshold}
         onChange={setThreshold}
         onSave={onSaveThreshold}
-        // saving={actions.savingThreshold}
       />
+
       <TablePlaceholder />
+
       {/* 토스트 메시지 */}
       {toast && (
         <div className='fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 rounded-2xl px-4 py-2 text-sm shadow-lg z-50'>
           {toast}
         </div>
       )}
+
       {/* 로딩 오버레이 */}
       {loading.any && (
         <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40'>
