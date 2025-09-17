@@ -4,6 +4,8 @@ export const dynamic = 'force-dynamic';
 import https from 'https';
 import { NextRequest, NextResponse } from 'next/server';
 
+type Ctx = { params: { path: string[] } };
+
 function normalizeBase(raw?: string | null) {
   if (!raw) return '';
   const b = raw.replace(/\/+$/, '');
@@ -90,11 +92,18 @@ async function handle(req: NextRequest, segments: string[] = []) {
   });
 }
 
-// 옵셔널 캐치올 -> /proxy/streaming 및 그 하위 전부 매칭
-export function GET(req: NextRequest, ctx: { params: { path?: string[] } }) {
-  return handle(req, ctx.params.path ?? []);
+export async function GET(req: NextRequest, { params }: Ctx) {
+  return handle(req, params.path);
 }
-export const POST = GET;
-export const PUT = GET;
-export const PATCH = GET;
-export const DELETE = GET;
+export async function POST(req: NextRequest, { params }: Ctx) {
+  return handle(req, params.path);
+}
+export async function PUT(req: NextRequest, { params }: Ctx) {
+  return handle(req, params.path);
+}
+export async function PATCH(req: NextRequest, { params }: Ctx) {
+  return handle(req, params.path);
+}
+export async function DELETE(req: NextRequest, { params }: Ctx) {
+  return handle(req, params.path);
+}
