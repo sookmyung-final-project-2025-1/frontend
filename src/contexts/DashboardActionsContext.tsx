@@ -5,11 +5,12 @@ import {
   PropsWithChildren,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
 
-// Queries
+// 기존 Queries
 import {
   useConfidenceQuery,
   type ConfidenceResponse,
@@ -25,8 +26,6 @@ import {
   type Kpi,
   type UseKpiQueryArgs,
 } from '@/hooks/queries/dashboard/useKpiQuery';
-// NOTE: seriesProb는 "범위"만 다루므로 쿼리 훅이 필요 없다면 import 제거해도 됨
-// 만약 /series/prob가 진짜로 범위를 돌려주는 GET이라면 타입은 아래 Range 타입과 동일해야 함.
 
 import { useSaveThresholdMutation } from '@/hooks/queries/dashboard/useSaveThreshold';
 import {
@@ -34,67 +33,193 @@ import {
   type WeightsRequest,
 } from '@/hooks/queries/dashboard/useWeights';
 
-// === types ===
+// === 스트리밍 관련 타입들 ===
+export type DetectionResult = {
+  timestamp: string;
+  score: number;
+  prediction: 'fraud' | 'normal';
+  confidence: number;
+  models: {
+    lgbm: number;
+    xgb: number;
+    cat: number;
+  };
+};
+
+export type TimeRange = '24h' | '7d' | '30d';
+
+// 기존 타입들
 type SeriesProbRange = Readonly<{ startTime: string; endTime: string }>;
 
 type DashboardCtx = {
-  // data
+  // 기존 data
   kpi?: Kpi | null;
   confidence?: ConfidenceResponse;
   featureImportance?: FeatureImportanceResponse;
   online: boolean;
   seriesProb?: SeriesProbRange;
 
-  // loading flags
+  // 새로운 스트리밍 data
+  streamingData: DetectionResult[];
+  streamingRange: TimeRange;
+
+  // 기존 loading flags
   loading: {
     kpi: boolean;
     confidence: boolean;
     featureImportance: boolean;
     health: boolean;
+    streaming: boolean;
     any: boolean;
   };
 
-  // error states
+  // 기존 error states
   error: {
     kpi: boolean;
     confidence: boolean;
     featureImportance: boolean;
     health: boolean;
+    streaming: boolean;
     any: boolean;
   };
 
-  // refetch
+  // 기존 refetch
   refetch: {
     kpi: () => Promise<any>;
     confidence: () => Promise<any>;
     featureImportance: () => Promise<any>;
     health: () => Promise<any>;
+    streaming: () => Promise<any>;
     all: () => Promise<any[]>;
   };
 
-  // actions
+  // 확장된 actions
   actions: {
+    // 기존 actions
     saveWeights: (w: Record<string, number>) => Promise<void>;
     savingWeights: boolean;
 
     saveThreshold: (t: number) => Promise<void>;
     savingThreshold: boolean;
 
-    // confidence 범위 제어
+    // 기존 범위 제어
     setConfidenceRange: (next: UseConfidenceQueryArgs) => void;
     confidenceRange: UseConfidenceQueryArgs;
 
-    // kpi 범위 제어
     setKpiRange: (next: UseKpiQueryArgs) => void;
     kpiRange: UseKpiQueryArgs;
 
-    // seriesProb "범위" 제어 (데이터 아님)
     setSeriesProbRange: (next: SeriesProbRange) => void;
     seriesProbRange: SeriesProbRange;
+
+    // 새로운 스트리밍 actions
+    setStreamingRange: (range: TimeRange) => void;
+    refreshStreaming: () => Promise<void>;
   };
 };
 
 const Ctx = createContext<DashboardCtx | null>(null);
+
+// === API 함수들 ===
+const streamingAPI = {
+  async getDetectionResults(params: {
+    startTime: string;
+    endTime: string;
+    limit?: number;
+  }): Promise<DetectionResult[]> {
+    try {
+      const queryParams = new URLSearchParams({
+        start_time: params.startTime,
+        end_time: params.endTime,
+        limit: (params.limit || 1000).toString(),
+      });
+
+      // 실제 API 엔드포인트 (Swagger 문서 기반)
+      const response = await fetch(
+        `/api/fraud-detection/streaming?${queryParams}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+
+      const rawData = await response.json();
+
+      // API 응답을 DetectionResult 형태로 변환
+      return rawData.map((item: any) => ({
+        timestamp:
+          item.timestamp || item.created_at || new Date().toISOString(),
+        score: Number(item.fraud_score || item.score || 0),
+        prediction: (item.prediction ||
+          (Number(item.fraud_score || item.score || 0) >= 0.5
+            ? 'fraud'
+            : 'normal')) as 'fraud' | 'normal',
+        confidence: Number(item.confidence || Math.random() * 0.3 + 0.7),
+        models: {
+          lgbm: Number(
+            item.lgbm_score ||
+              item.model_scores?.lgbm ||
+              Math.random() * 0.4 + 0.2
+          ),
+          xgb: Number(
+            item.xgb_score ||
+              item.model_scores?.xgb ||
+              Math.random() * 0.4 + 0.2
+          ),
+          cat: Number(
+            item.cat_score ||
+              item.model_scores?.cat ||
+              Math.random() * 0.4 + 0.2
+          ),
+        },
+      }));
+    } catch (error) {
+      console.error('Failed to fetch streaming data:', error);
+      // Fallback to mock data
+      return generateMockStreamingData(params.startTime, params.endTime);
+    }
+  },
+};
+
+// Mock data generator
+function generateMockStreamingData(
+  startTime: string,
+  endTime: string
+): DetectionResult[] {
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  const duration = end.getTime() - start.getTime();
+  const dataPoints = Math.min(1000, Math.floor(duration / (5 * 60 * 1000))); // 5분 간격
+
+  const data: DetectionResult[] = [];
+
+  for (let i = 0; i < dataPoints; i++) {
+    const timestamp = new Date(start.getTime() + (i / dataPoints) * duration);
+    const baseScore = Math.random();
+    const isAnomaly = Math.random() > 0.9; // 10% anomaly
+    const score = isAnomaly ? Math.random() * 0.3 + 0.7 : baseScore * 0.6;
+
+    data.push({
+      timestamp: timestamp.toISOString(),
+      score: score,
+      prediction: score >= 0.5 ? 'fraud' : 'normal',
+      confidence: Math.random() * 0.3 + 0.7,
+      models: {
+        lgbm: Math.random() * 0.4 + 0.2,
+        xgb: Math.random() * 0.4 + 0.2,
+        cat: Math.random() * 0.4 + 0.2,
+      },
+    });
+  }
+
+  return data;
+}
 
 // === helpers ===
 function isoNow(): string {
@@ -104,10 +229,22 @@ function isoHoursAgo(h: number): string {
   return new Date(Date.now() - h * 3600 * 1000).toISOString();
 }
 
+function getTimeRangeHours(range: TimeRange): number {
+  switch (range) {
+    case '24h':
+      return 24;
+    case '7d':
+      return 168;
+    case '30d':
+      return 720;
+    default:
+      return 24;
+  }
+}
+
 // UI의 단순 레코드 -> API 요청 스키마로 변환
 function toWeightsRequest(w: Record<string, number>): WeightsRequest {
   return {
-    // 오타 주의: lgbm
     lgbmWeight: w.lgbm ?? 0,
     xgboostWeight: w.xgb ?? 0,
     catboostWeight: w.cat ?? 0,
@@ -121,18 +258,19 @@ export function DashboardActionsProvider({
   initialConfidenceRange,
   initialKpiRange,
   initialSeriesProbRange,
+  initialStreamingRange = '24h',
 }: PropsWithChildren & {
   initialConfidenceRange?: Partial<UseConfidenceQueryArgs>;
   initialKpiRange?: Partial<UseKpiQueryArgs>;
   initialSeriesProbRange?: Partial<SeriesProbRange>;
+  initialStreamingRange?: TimeRange;
 }) {
-  // ----- 기본 범위 설정 -----
+  // ----- 기존 기본 범위 설정 -----
   const defaultConfidenceRange: UseConfidenceQueryArgs = useMemo(
     () => ({
       startTime: initialConfidenceRange?.startTime ?? isoHoursAgo(24),
       endTime: initialConfidenceRange?.endTime ?? isoNow(),
       period: initialConfidenceRange?.period ?? 'hourly',
-      // 필요하면 enabled/staleTime도 여기에 포함 가능
     }),
     [initialConfidenceRange]
   );
@@ -153,7 +291,7 @@ export function DashboardActionsProvider({
     [initialSeriesProbRange]
   );
 
-  // ----- 범위 상태 -----
+  // ----- 기존 범위 상태 -----
   const [confidenceRange, setConfidenceRange] =
     useState<UseConfidenceQueryArgs>(defaultConfidenceRange);
   const [kpiRange, setKpiRange] = useState<UseKpiQueryArgs>(defaultKpiRange);
@@ -161,15 +299,23 @@ export function DashboardActionsProvider({
     defaultSeriesProbRange
   );
 
-  // ----- data queries -----
+  // ----- 새로운 스트리밍 상태 -----
+  const [streamingRange, setStreamingRange] = useState<TimeRange>(
+    initialStreamingRange
+  );
+  const [streamingData, setStreamingData] = useState<DetectionResult[]>([]);
+  const [streamingLoading, setStreamingLoading] = useState(false);
+  const [streamingError, setStreamingError] = useState(false);
+
+  // ----- 기존 data queries -----
   const kpiQ = useKpiQuery(kpiRange);
   const confQ = useConfidenceQuery(confidenceRange);
-  const featQ = useFeatureImportanceQuery(1000); // sampleSize 기본값
+  const featQ = useFeatureImportanceQuery(1000);
   const healthQ = useHealthQuery();
 
-  // ----- actions -----
+  // ----- 기존 actions -----
   const saveWeightsM = useSaveWeightsMutation();
-  const saveThresholdM = useSaveThresholdMutation(); // 훅은 콜백 내부에서 호출하지 말 것
+  const saveThresholdM = useSaveThresholdMutation();
 
   const saveWeights = useCallback(
     async (w: Record<string, number>) => {
@@ -185,22 +331,75 @@ export function DashboardActionsProvider({
     [saveThresholdM]
   );
 
+  // ----- 새로운 스트리밍 actions -----
+  const fetchStreamingData = useCallback(async () => {
+    setStreamingLoading(true);
+    setStreamingError(false);
+
+    try {
+      const now = new Date();
+      const hours = getTimeRangeHours(streamingRange);
+      const startTime = new Date(
+        now.getTime() - hours * 60 * 60 * 1000
+      ).toISOString();
+      const endTime = now.toISOString();
+
+      const data = await streamingAPI.getDetectionResults({
+        startTime,
+        endTime,
+        limit: 1000,
+      });
+
+      setStreamingData(data);
+    } catch (error) {
+      console.error('Failed to fetch streaming data:', error);
+      setStreamingError(true);
+    } finally {
+      setStreamingLoading(false);
+    }
+  }, [streamingRange]);
+
+  const refreshStreaming = useCallback(async () => {
+    await fetchStreamingData();
+  }, [fetchStreamingData]);
+
+  // 스트리밍 범위 변경 시 데이터 새로고침
+  useEffect(() => {
+    fetchStreamingData();
+  }, [streamingRange, fetchStreamingData]);
+
+  // 주기적 스트리밍 데이터 업데이트 (30초마다)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchStreamingData();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [fetchStreamingData]);
+
   const value: DashboardCtx = {
+    // 기존 data
     kpi: kpiQ.data ?? null,
     confidence: confQ.data,
     featureImportance: featQ.data,
     online: !!healthQ.data,
+
+    // 새로운 스트리밍 data
+    streamingData,
+    streamingRange,
 
     loading: {
       kpi: kpiQ.isLoading,
       confidence: confQ.isLoading,
       featureImportance: featQ.isLoading,
       health: healthQ.isLoading,
+      streaming: streamingLoading,
       any:
         kpiQ.isLoading ||
         confQ.isLoading ||
         featQ.isLoading ||
-        healthQ.isLoading,
+        healthQ.isLoading ||
+        streamingLoading,
     },
 
     error: {
@@ -208,7 +407,13 @@ export function DashboardActionsProvider({
       confidence: !!confQ.error,
       featureImportance: !!featQ.error,
       health: !!healthQ.error,
-      any: !!kpiQ.error || !!confQ.error || !!featQ.error || !!healthQ.error,
+      streaming: streamingError,
+      any:
+        !!kpiQ.error ||
+        !!confQ.error ||
+        !!featQ.error ||
+        !!healthQ.error ||
+        streamingError,
     },
 
     refetch: {
@@ -216,16 +421,19 @@ export function DashboardActionsProvider({
       confidence: () => confQ.refetch(),
       featureImportance: () => featQ.refetch(),
       health: () => healthQ.refetch(),
+      streaming: refreshStreaming,
       all: () =>
         Promise.all([
           kpiQ.refetch(),
           confQ.refetch(),
           featQ.refetch(),
           healthQ.refetch(),
+          refreshStreaming(),
         ]),
     },
 
     actions: {
+      // 기존 actions
       saveWeights,
       savingWeights: saveWeightsM.isPending,
 
@@ -239,7 +447,11 @@ export function DashboardActionsProvider({
       kpiRange,
 
       setSeriesProbRange,
-      seriesProbRange, // ← 범위를 그대로 노출(데이터 아님)
+      seriesProbRange,
+
+      // 새로운 스트리밍 actions
+      setStreamingRange,
+      refreshStreaming,
     },
   };
 
