@@ -49,6 +49,7 @@ export const useSignup = () => {
     endpoint: '/proxy/auth/signup',
     authorization: false,
     onSuccess: () => {
+      alert('회원가입이 완료되었습니다.');
       router.replace('/signin');
     },
     onError: (err) => {

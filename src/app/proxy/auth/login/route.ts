@@ -12,6 +12,11 @@ function normalizeBase(raw?: string | null) {
 }
 const API = normalizeBase(process.env.API_BASE_URL);
 
+// 개발 환경에서 API URL 확인
+if (process.env.NODE_ENV === 'development') {
+  console.log('🔗 API Base URL:', API);
+}
+
 // TLS 검증 우회 에이전트 생성
 const httpsAgent = new https.Agent({
   rejectUnauthorized: false, // 자체 서명 인증서 허용
@@ -44,6 +49,7 @@ function pickReqHeaders(src: Headers) {
     'user-agent',
     'authorization',
     'cookie',
+    'content-type', // POST 요청을 위해 content-type 추가
   ]) {
     const v = src.get(k);
     if (v) h.set(k, v);
@@ -61,19 +67,45 @@ function filterResHeaders(src: Headers) {
   return h;
 }
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   if (!API)
     return NextResponse.json(
       { message: 'API_BASE_URL missing' },
       { status: 500 }
     );
 
-  const upstreamUrl = `${API}/auth/check-email${req.nextUrl.search}`;
+  const upstreamUrl = `${API}/auth/login`;
 
   try {
+    // 요청 body 읽기
+    const requestBody = await req.arrayBuffer();
+
+    // 개발 환경에서 요청 정보 로그
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📤 API 요청:');
+      console.log('Method: POST');
+      console.log('URL:', upstreamUrl);
+      console.log(
+        'Request Headers:',
+        Object.fromEntries(req.headers.entries())
+      );
+
+      const bodyText = Buffer.from(requestBody).toString('utf8');
+      console.log('Request Body:', bodyText);
+
+      // JSON 파싱 검증
+      try {
+        const jsonBody = JSON.parse(bodyText);
+        console.log('✅ JSON 파싱 성공:', jsonBody);
+      } catch (e) {
+        console.log('❌ JSON 파싱 실패:', e);
+      }
+    }
+
     const res = await fetch(upstreamUrl, {
-      method: 'GET',
+      method: 'POST',
       headers: pickReqHeaders(req.headers),
+      body: requestBody,
       cache: 'no-store',
       redirect: 'follow',
       // @ts-ignore - Node.js 환경에서만 작동
@@ -95,7 +127,24 @@ export async function GET(req: NextRequest) {
     // 에러 응답인 경우 내용도 출력
     if (res.status >= 400 && process.env.NODE_ENV === 'development') {
       const responseText = buf.toString('utf8');
-      console.log('Error Response Body:', responseText);
+      console.log('❌ Error Response Body:', responseText);
+
+      // JSON 응답인지 확인
+      try {
+        const errorJson = JSON.parse(responseText);
+        console.log('📋 구조화된 에러 정보:', {
+          timestamp: errorJson.timestamp,
+          status: errorJson.status,
+          error: errorJson.error,
+          message: errorJson.message,
+          details: errorJson.details,
+        });
+      } catch (e) {
+        console.log('텍스트 응답:', responseText);
+      }
+    } else if (process.env.NODE_ENV === 'development') {
+      const responseText = buf.toString('utf8');
+      console.log('✅ Success Response:', responseText);
     }
 
     return new NextResponse(buf, {
