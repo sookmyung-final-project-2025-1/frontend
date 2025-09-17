@@ -20,7 +20,9 @@ export type UseConfidenceQueryArgs = Readonly<{
 }>;
 
 export const useConfidenceQuery = (args: UseConfidenceQueryArgs) => {
-  const { startTime, endTime, period = 'hourly' } = args;
+  const startTime = args.startTime;
+  const endTime = args.endTime;
+  const period = args.period ?? 'hourly';
 
   const condfidenceParameters = new URLSearchParams({
     startTime,
@@ -35,6 +37,6 @@ export const useConfidenceQuery = (args: UseConfidenceQueryArgs) => {
       endpoint: `/proxy/model/confidence?${condfidenceParameters}`,
       authorization: true,
     },
-    fetchOptions: { enabled: !!isEnabled },
+    fetchOptions: { enabled: !!isEnabled, staleTime: 20_000 },
   });
 };

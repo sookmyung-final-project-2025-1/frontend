@@ -1,7 +1,6 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import Image from 'next/image';
 import Link from 'next/link';
 
 type AlertProps = {
@@ -31,7 +30,7 @@ export default function Alert({
             role='alert'
           >
             <div className='w-[80px] h-[80px]'>
-              <Image
+              <img
                 src={'/assets/icons/alert.png'}
                 width={80}
                 height={80}

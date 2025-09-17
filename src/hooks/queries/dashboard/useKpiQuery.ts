@@ -6,9 +6,10 @@ export type UseKpiQueryArgs = Readonly<{
 }>;
 
 export type Kpi = {
-  additionProp1: {};
-  additionProp2: {};
-  additionProp3: {};
+  totalTransactions: number;
+  fraudDetected: number;
+  fraudRate: number;
+  avgConfidenceScore: number;
 };
 
 export const useKpiQuery = (args: UseKpiQueryArgs) => {
@@ -26,6 +27,6 @@ export const useKpiQuery = (args: UseKpiQueryArgs) => {
       endpoint: `/proxy/dashboard/kpis?${kpiParameters}`,
       authorization: true,
     },
-    fetchOptions: { enabled: isEnabled, staleTime: 0 },
+    fetchOptions: { enabled: isEnabled, staleTime: 20_000 },
   });
 };

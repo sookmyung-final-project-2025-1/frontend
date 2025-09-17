@@ -95,10 +95,14 @@ export function useApiMutation<TResponse, TVariables = void>(
       return data;
     },
 
-    onSuccess: (data) => {
+    onSuccess: (data, vars, ctx) => {
+      // ✅ 즉시 캐시 갱신 (선택)
       if (opts.invalidateKeys?.length) {
         for (const key of opts.invalidateKeys) {
-          qc.invalidateQueries({ queryKey: key });
+          qc.setQueryData(key, data);
+          qc.invalidateQueries({
+            queryKey: key,
+          });
         }
       }
       opts.onSuccess?.(data);

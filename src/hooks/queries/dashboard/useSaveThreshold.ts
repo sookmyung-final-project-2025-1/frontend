@@ -1,9 +1,9 @@
+import { QUERY_KEYS } from '@/hooks/queryKeys';
 import { useApiMutation } from '../useApi';
 
 export type ThresholdResponse = {
-  additionProp1: {};
-  additionProp2: {};
-  additionProp3: {};
+  status: string;
+  threshold: string;
 };
 
 export const useSaveThresholdMutation = () =>
@@ -12,4 +12,5 @@ export const useSaveThresholdMutation = () =>
     endpoint: (threshold) => `/proxy/model/threshold?threshold=${threshold}`,
     authorization: true,
     body: (v) => v,
+    invalidateKeys: [QUERY_KEYS.weight],
   });
