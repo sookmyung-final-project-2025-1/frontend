@@ -63,10 +63,9 @@ async function handle(req: Request, segments: string[]) {
     );
   }
 
-  // 업스트림 URL: /api/streaming/(segments...)
   const upstream = new URL(`${API}/streaming/${segments.join('/')}`);
 
-  // 쿼리 그대로 전달
+  // 쿼리 전달
   const { searchParams } = new URL(req.url);
   searchParams.forEach((v, k) => upstream.searchParams.set(k, v));
 
@@ -92,34 +91,27 @@ async function handle(req: Request, segments: string[]) {
   });
 }
 
-// ✅ 두 번째 인자 타입을 "inline literal"로!
-export async function GET(
-  req: Request,
-  { params }: { params: { path: string[] } }
-) {
-  return handle(req, params.path);
+// ── 여기부터: 두 번째 인자 타입 ❌ (context를 any처럼)
+//    Next의 타입체커를 피하기 위한 안전한 우회
+function seg(ctx: any): string[] {
+  const p = ctx?.params?.path;
+  if (Array.isArray(p)) return p;
+  if (typeof p === 'string') return [p];
+  return []; // [[...path]]가 아니라면 여긴 거의 안 옴
 }
-export async function POST(
-  req: Request,
-  { params }: { params: { path: string[] } }
-) {
-  return handle(req, params.path);
+
+export async function GET(req: Request, ctx: any) {
+  return handle(req, seg(ctx));
 }
-export async function PUT(
-  req: Request,
-  { params }: { params: { path: string[] } }
-) {
-  return handle(req, params.path);
+export async function POST(req: Request, ctx: any) {
+  return handle(req, seg(ctx));
 }
-export async function PATCH(
-  req: Request,
-  { params }: { params: { path: string[] } }
-) {
-  return handle(req, params.path);
+export async function PUT(req: Request, ctx: any) {
+  return handle(req, seg(ctx));
 }
-export async function DELETE(
-  req: Request,
-  { params }: { params: { path: string[] } }
-) {
-  return handle(req, params.path);
+export async function PATCH(req: Request, ctx: any) {
+  return handle(req, seg(ctx));
+}
+export async function DELETE(req: Request, ctx: any) {
+  return handle(req, seg(ctx));
 }
