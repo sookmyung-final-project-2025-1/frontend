@@ -3,10 +3,10 @@ import { Kpi } from '@/hooks/queries/dashboard/useKpiQuery';
 
 export default function KpiCards({ kpi }: { kpi?: Kpi | null }) {
   const items = [
-    { label: '신규 유저/시간', value: kpi?.additionProp1 ?? '-' },
-    { label: '전체 유저', value: kpi?.additionProp1 ?? '-' },
-    { label: 'Throughput', value: kpi?.additionProp1 ?? '-' },
-    { label: 'Latency p95', value: kpi?.additionProp1 ?? '-' },
+    { label: '전체 거래 수', value: kpi?.totalTransactions ?? '-' },
+    { label: '사기 탐지 건수', value: kpi?.fraudDetected ?? '-' },
+    { label: '사기율', value: kpi?.fraudRate ?? '-' },
+    { label: '평균 신뢰도', value: kpi?.avgConfidenceScore ?? '-' },
   ];
 
   return (
