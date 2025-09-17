@@ -1,4 +1,4 @@
-const SERVER_API = process.env.API_PROXY_TARGET as string;
+const SERVER_API = process.env.API_BASE_URL as string;
 
 // 런타임 판별
 const isServer = () => typeof window === 'undefined';
@@ -24,8 +24,8 @@ export const tokenStore = {
     if (isServer()) return;
 
     if (token) {
-      // 기본 15분 만료 (900초)
-      const expiry = maxAge || 900;
+      // 기본 60분 만료 (3600초)
+      const expiry = maxAge || 3600;
       document.cookie = `accessToken=${token}; path=/; max-age=${expiry}; secure; samesite=strict`;
     } else {
       // 토큰 삭제
