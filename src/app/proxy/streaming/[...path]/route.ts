@@ -2,9 +2,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import https from 'https';
-import { NextRequest, NextResponse } from 'next/server';
-
-type Ctx = { params: { path: string[] } };
+import { NextResponse } from 'next/server';
 
 function normalizeBase(raw?: string | null) {
   if (!raw) return '';
@@ -57,17 +55,20 @@ function filterResHeaders(src: Headers) {
   return h;
 }
 
-async function handle(req: NextRequest, segments: string[] = []) {
-  if (!API)
+async function handle(req: Request, segments: string[]) {
+  if (!API) {
     return NextResponse.json(
       { message: 'API_BASE_URL missing' },
       { status: 500 }
     );
+  }
 
-  // 업스트림 URL 조립: /api/streaming/(segments...)
-  const upstream = new URL(`${API}/streaming/${(segments ?? []).join('/')}`);
-  // 쿼리 전달
-  req.nextUrl.searchParams.forEach((v, k) => upstream.searchParams.set(k, v));
+  // 업스트림 URL: /api/streaming/(segments...)
+  const upstream = new URL(`${API}/streaming/${segments.join('/')}`);
+
+  // 쿼리 그대로 전달
+  const { searchParams } = new URL(req.url);
+  searchParams.forEach((v, k) => upstream.searchParams.set(k, v));
 
   const init: RequestInit = {
     method: req.method,
@@ -79,7 +80,6 @@ async function handle(req: NextRequest, segments: string[] = []) {
   };
 
   if (req.method !== 'GET' && req.method !== 'HEAD') {
-    // 바디 그대로 전달
     init.body = await req.arrayBuffer();
   }
 
@@ -92,18 +92,34 @@ async function handle(req: NextRequest, segments: string[] = []) {
   });
 }
 
-export async function GET(req: NextRequest, { params }: Ctx) {
+// ✅ 두 번째 인자 타입을 "inline literal"로!
+export async function GET(
+  req: Request,
+  { params }: { params: { path: string[] } }
+) {
   return handle(req, params.path);
 }
-export async function POST(req: NextRequest, { params }: Ctx) {
+export async function POST(
+  req: Request,
+  { params }: { params: { path: string[] } }
+) {
   return handle(req, params.path);
 }
-export async function PUT(req: NextRequest, { params }: Ctx) {
+export async function PUT(
+  req: Request,
+  { params }: { params: { path: string[] } }
+) {
   return handle(req, params.path);
 }
-export async function PATCH(req: NextRequest, { params }: Ctx) {
+export async function PATCH(
+  req: Request,
+  { params }: { params: { path: string[] } }
+) {
   return handle(req, params.path);
 }
-export async function DELETE(req: NextRequest, { params }: Ctx) {
+export async function DELETE(
+  req: Request,
+  { params }: { params: { path: string[] } }
+) {
   return handle(req, params.path);
 }

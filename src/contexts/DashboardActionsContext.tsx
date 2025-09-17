@@ -1,17 +1,6 @@
 'use client';
 
 import {
-  createContext,
-  PropsWithChildren,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-
-// 기존 Queries
-import {
   useConfidenceQuery,
   type ConfidenceResponse,
   type UseConfidenceQueryArgs,
@@ -26,6 +15,15 @@ import {
   type Kpi,
   type UseKpiQueryArgs,
 } from '@/hooks/queries/dashboard/useKpiQuery';
+import {
+  createContext,
+  PropsWithChildren,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import { useSaveThresholdMutation } from '@/hooks/queries/dashboard/useSaveThreshold';
 import {
@@ -48,22 +46,20 @@ export type DetectionResult = {
 
 export type TimeRange = '24h' | '7d' | '30d';
 
-// 기존 타입들
 type SeriesProbRange = Readonly<{ startTime: string; endTime: string }>;
 
 type DashboardCtx = {
-  // 기존 data
   kpi?: Kpi | null;
   confidence?: ConfidenceResponse;
   featureImportance?: FeatureImportanceResponse;
   online: boolean;
   seriesProb?: SeriesProbRange;
 
-  // 새로운 스트리밍 data
+  // 스트리밍 data
   streamingData: DetectionResult[];
   streamingRange: TimeRange;
 
-  // 기존 loading flags
+  // loading flags
   loading: {
     kpi: boolean;
     confidence: boolean;
@@ -73,7 +69,7 @@ type DashboardCtx = {
     any: boolean;
   };
 
-  // 기존 error states
+  // error states
   error: {
     kpi: boolean;
     confidence: boolean;
@@ -83,7 +79,6 @@ type DashboardCtx = {
     any: boolean;
   };
 
-  // 기존 refetch
   refetch: {
     kpi: () => Promise<any>;
     confidence: () => Promise<any>;
@@ -93,16 +88,13 @@ type DashboardCtx = {
     all: () => Promise<any[]>;
   };
 
-  // 확장된 actions
   actions: {
-    // 기존 actions
     saveWeights: (w: Record<string, number>) => Promise<void>;
     savingWeights: boolean;
 
     saveThreshold: (t: number) => Promise<void>;
     savingThreshold: boolean;
 
-    // 기존 범위 제어
     setConfidenceRange: (next: UseConfidenceQueryArgs) => void;
     confidenceRange: UseConfidenceQueryArgs;
 
@@ -112,7 +104,6 @@ type DashboardCtx = {
     setSeriesProbRange: (next: SeriesProbRange) => void;
     seriesProbRange: SeriesProbRange;
 
-    // 새로운 스트리밍 actions
     setStreamingRange: (range: TimeRange) => void;
     refreshStreaming: () => Promise<void>;
   };
