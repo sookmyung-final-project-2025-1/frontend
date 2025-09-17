@@ -18,5 +18,8 @@ export const useLogin = () => {
         alert('로그인 실패');
       }
     },
+    onError: (err) => {
+      if (err.status === 400) alert('아이디/비밀번호를 다시 확인해주세요.');
+    },
   });
 };
