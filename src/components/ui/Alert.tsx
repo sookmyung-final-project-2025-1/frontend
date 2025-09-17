@@ -26,7 +26,7 @@ export default function Alert({
             initial={{ x: 40, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ type: 'spring', bounce: 0, duration: 0.55 }}
-            className='fixed top-[20px] right-[20px] z-50 w-[400px] h-[110px] px-[20px] pr-[20px] rounded-[10px] text-[#ffffff] shadow-[5px_8px_15.5px_rgba(1,1,1,1)] flex gap-[15px] justify-center items-center'
+            className='fixed top-[20px] right-[20px] z-50 w-[400px] h-[110px] px-[20px] pr-[20px] rounded-[10px] text-[#ffffff] shadow-[0_6px_24px_rgba(20,28,40,0.12)] flex gap-[15px] justify-center items-center'
             style={{ backgroundColor: '#EA3123' }}
             role='alert'
           >
