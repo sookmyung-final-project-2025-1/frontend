@@ -1,4 +1,4 @@
-import { fetcher } from '@/api/fetcher';
+import { ApiError, fetcher } from '@/api/fetcher';
 import { SendVerifyEmailSchema } from '@/types/signup.schema';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSendEmailCode } from './queries/useSignupApi';
@@ -16,17 +16,24 @@ export const useConfirmEmail = () => {
   const run = async (email: string) => {
     SendVerifyEmailSchema.parse({ email });
 
-    const checkEmailRes = await queryClient.fetchQuery({
-      queryKey: QUERY_KEYS.emailCheck(email),
-      queryFn: () =>
-        fetcher<checkEmailResType>({
-          method: 'GET',
-          endpoint: `/proxy/auth/check-email?email=${encodeURIComponent(email)}`,
-          authorization: false,
-        }),
-      staleTime: 0,
-      retry: false,
-    });
+    const checkEmailRes = await queryClient
+      .fetchQuery({
+        queryKey: QUERY_KEYS.emailCheck(email),
+        queryFn: () =>
+          fetcher<checkEmailResType>({
+            method: 'GET',
+            endpoint: `/proxy/auth/check-email?email=${encodeURIComponent(email)}`,
+            authorization: false,
+          }),
+        staleTime: 0,
+        retry: false,
+      })
+      .catch((e) => {
+        if (e instanceof ApiError && e.status === 409) {
+          throw new Error('이미 사용 중인 이메일입니다.');
+        }
+        throw e;
+      });
 
     if (checkEmailRes?.exists) {
       throw new Error(checkEmailRes.message);
