@@ -1,6 +1,5 @@
 'use client';
 
-import Alert from '@/components/ui/Alert';
 import { Link } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
@@ -21,11 +20,6 @@ export default function TransactionLayout({
   return (
     <div className=' bg-gradient-to-b from-slate-950 to-slate-900 text-slate-100'>
       <div className='w-[80vw] mx-auto relative'>
-        <Alert
-          isAlert={isFraud}
-          setAlert={setIsFraud}
-          id={'c1b1ea52-ecfc-4ec6-8861-8f57e04da422'}
-        />
         <header className='sticky top-0 z-10 h-[72px] w-full bg-white/50 backdrop-blur pt-[15px]'>
           <Link
             href='/dashboard'

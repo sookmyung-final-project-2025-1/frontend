@@ -1,6 +1,6 @@
 'use client';
 
-import StreamingTopBar from '@/components/dashboard/streaming/StreamingTopBar';
+import StreamingTopBar from '@/components/streaming/StreamingTopBar';
 import { useDashboardData } from '@/contexts/DashboardActionsContext';
 import { useStreaming } from '@/contexts/StreamingContext';
 import { useMemo, useState } from 'react';

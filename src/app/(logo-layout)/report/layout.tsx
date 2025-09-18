@@ -1,6 +1,5 @@
 'use client';
 
-import Alert from '@/components/ui/Alert';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -22,11 +21,6 @@ export default function LogoLayout({
   return (
     <div className='min-h-dvh bg-gradient-to-b from-[#F6F9FF] via-white to-[#EFF6FF] pb-[50px]'>
       <div className='w-[80vw] mx-auto relative'>
-        <Alert
-          isAlert={isFraud}
-          setAlert={setIsFraud}
-          id={'c1b1ea52-ecfc-4ec6-8861-8f57e04da422'}
-        />
         <header className='sticky top-0 z-10 h-[72px] w-full bg-white/50 backdrop-blur pt-[15px]'>
           <Link
             href='/dashboard'

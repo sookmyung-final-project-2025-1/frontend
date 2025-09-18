@@ -75,14 +75,15 @@ export default function SystemHealth() {
   }));
 
   const formatTime = (timeInSeconds: number) => {
-    if (timeInSeconds === 0) return '0ms';
-    const ms = timeInSeconds * 1000;
-    return ms < 1 ? `${(ms * 1000).toFixed(0)}μs` : `${ms.toFixed(2)}ms`;
+    if (timeInSeconds === 0) return '0s';
+    return timeInSeconds < 1
+      ? `${(timeInSeconds * 1000).toFixed(0)}ms`
+      : `${timeInSeconds.toFixed(2)}s`;
   };
 
   return (
     <div className='min-h-screen p-6 text-[#ffffff] rounded-2xl border border-slate-800 bg-slate-900/40'>
-      <div className='max-w-7xl mx-auto'>
+      <div className='mx-auto'>
         {/* 헤더 */}
         <div className='mb-8'>
           <p className='text-gray-600'>
@@ -153,7 +154,7 @@ export default function SystemHealth() {
           <div className='bg-white rounded-lg shadow-sm p-6 border'>
             <h3 className='text-lg font-semibold mb-4'>헬스 스코어</h3>
             <div className='h-64'>
-              <ResponsiveContainer width='100%' height='60%'>
+              <ResponsiveContainer width='100%' height='75%'>
                 <PieChart>
                   <Pie
                     data={scoreData}
@@ -172,7 +173,7 @@ export default function SystemHealth() {
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-              <div className='text-center mt-4 flex gap-2'>
+              <div className='w-full mt-4 flex gap-2 items-end justify-end'>
                 <p className='text-3xl font-bold text-blue-600'>{data.score}</p>
                 <p className='text-sm text-gray-500'>/ 100</p>
               </div>

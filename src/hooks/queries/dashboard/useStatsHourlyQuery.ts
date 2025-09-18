@@ -5,6 +5,13 @@ export type UseStatsHourlyQueryArgs = Readonly<{
   endTime: string;
 }>;
 
+export type HourlyResponse = {
+  avgConfidenceScore: number;
+  avgProcessingTime: number;
+  timestamp: string;
+  totalCount: number;
+};
+
 export const useStatsHourlyQuery = (args: UseStatsHourlyQueryArgs) => {
   const { startTime, endTime } = args;
 
@@ -14,7 +21,7 @@ export const useStatsHourlyQuery = (args: UseStatsHourlyQueryArgs) => {
   }).toString();
   const isEnabled = Boolean(startTime && endTime);
 
-  return useApiQuery<UseStatsHourlyQueryArgs[]>({
+  return useApiQuery<HourlyResponse[]>({
     queryKey: ['stats', 'hourly', args],
     queryOptions: {
       endpoint: `/proxy/dashboard/stats/hourly?${hourlyParameters}`,
