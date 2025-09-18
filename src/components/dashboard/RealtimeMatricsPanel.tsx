@@ -26,12 +26,6 @@ export default function RealtimeOverview() {
   const [series, setSeries] = useState<RealtimeMetric[]>([]);
   const lastTsRef = useRef<string | null>(null);
 
-  // 폴링 (2초)
-  useEffect(() => {
-    const id = setInterval(() => refetch(), 2000);
-    return () => clearInterval(id);
-  }, [refetch]);
-
   // 스냅샷 버퍼링 (최근 60포인트)
   useEffect(() => {
     if (!snap?.timestamp) return;

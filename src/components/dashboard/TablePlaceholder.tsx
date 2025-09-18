@@ -72,13 +72,6 @@ export default function TablePlaceholder() {
               className='w-20 px-2 py-1 rounded-md bg-slate-800 border border-slate-700 text-xs'
               title='1~1000 사이 숫자'
             />
-
-            {/* <button
-              type='button'
-              className='px-3 py-1.5 rounded-xl border border-slate-600 hover:bg-slate-800 text-xs'
-            >
-              전체 보기
-            </button> */}
           </div>
         </div>
 

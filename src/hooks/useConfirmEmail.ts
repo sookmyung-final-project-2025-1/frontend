@@ -4,6 +4,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useSendEmailCode } from './queries/useSignupApi';
 import { QUERY_KEYS } from './queryKeys';
 
+type checkEmailResType = {
+  exists: boolean;
+  message: string;
+};
+
 export const useConfirmEmail = () => {
   const queryClient = useQueryClient();
   const sendCode = useSendEmailCode();
@@ -11,11 +16,11 @@ export const useConfirmEmail = () => {
   const run = async (email: string) => {
     SendVerifyEmailSchema.parse({ email });
 
-    await queryClient
+    const checkEmailRes = await queryClient
       .fetchQuery({
         queryKey: QUERY_KEYS.emailCheck(email),
         queryFn: () =>
-          fetcher<void>({
+          fetcher<checkEmailResType>({
             method: 'GET',
             endpoint: `/proxy/auth/check-email?email=${encodeURIComponent(email)}`,
             authorization: false,
@@ -29,6 +34,10 @@ export const useConfirmEmail = () => {
         }
         throw e;
       });
+
+    if (checkEmailRes?.exists) {
+      throw new Error(checkEmailRes.message);
+    }
 
     const res = await sendCode.mutateAsync({ email });
 

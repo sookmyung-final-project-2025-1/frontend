@@ -174,9 +174,9 @@ export default function SignUp() {
                 alert(
                   `인증코드를 전송했습니다. (유효시간 ${expirationSeconds}초)`
                 );
-              } catch {
+              } catch (e) {
                 setOpenConfirm(false);
-                alert('이메일 인증 요청에 실패했습니다. 다시 시도해 주세요.');
+                alert(e);
                 setValue('email', '');
                 setFocus('email');
               }

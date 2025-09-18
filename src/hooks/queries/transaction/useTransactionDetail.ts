@@ -7,7 +7,7 @@ export const useTransactionDetail = (transactionId: string) => {
   return useApiQuery<TransactionType>({
     queryKey: ['transaction', 'detail', transactionId],
     queryOptions: {
-      endpoint: `/proxy/transaction?${transactionDetailParameter}`,
+      endpoint: `/proxy/transactions?${transactionDetailParameter}`,
       authorization: true,
     },
   });
