@@ -3,8 +3,8 @@
 import {
   useSaveThresholdMutation,
   type ThresholdResponse,
-} from '@/hooks/queries/dashboard/useSaveThreshold';
-import { useGetWeight } from '@/hooks/queries/dashboard/useWeights';
+} from '@/hooks/queries/model/useSaveThreshold';
+import { useGetWeight } from '@/hooks/queries/model/useWeights';
 import { useEffect, useState } from 'react';
 
 function Slider({

@@ -90,13 +90,15 @@ export default function TopBarContainer() {
     try {
       const targetMs = new Date(iso).getTime();
       if (isNaN(targetMs)) {
-        console.error('Invalid ISO string:', iso);
+        if (process.env.NODE_ENV === 'development')
+          console.error('Invalid ISO string:', iso);
         return;
       }
 
       await startTimemachine(iso, speed);
     } catch (error) {
-      console.error('Failed to seek:', error);
+      if (process.env.NODE_ENV === 'development')
+        console.error('Failed to seek:', error);
     }
   };
 
@@ -122,11 +124,6 @@ export default function TopBarContainer() {
         updatedAt: streamingData.updatedAt,
       }
     : undefined;
-
-  // 디버깅을 위한 콘솔 로그
-  console.log('StreamingData:', streamingData);
-  console.log('Position:', position);
-  console.log('VirtualTime:', virtualTime);
 
   return (
     <StreamingTopBar

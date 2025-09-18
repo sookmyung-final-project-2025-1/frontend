@@ -1,7 +1,7 @@
 'use client';
 
 import { useHighRiskTransaction } from '@/hooks/queries/dashboard/useHighRiskTransaction';
-import { useGetWeight } from '@/hooks/queries/dashboard/useWeights';
+import { useGetWeight } from '@/hooks/queries/model/useWeights';
 import { useState } from 'react';
 
 export default function TablePlaceholder() {
@@ -84,10 +84,10 @@ export default function TablePlaceholder() {
 
         <div className='mt-4 grid grid-cols-5 text-xs text-slate-400'>
           <div>시간</div>
-          <div>거래ID</div>
+          <div>사용자ID</div>
           <div>금액</div>
           <div>최종확률</div>
-          <div>라벨</div>
+          <div>가맹점</div>
         </div>
 
         <div className='mt-2'>
@@ -105,29 +105,20 @@ export default function TablePlaceholder() {
                 const labelBad = tx.fraudScore >= threshold;
                 return (
                   <li
-                    key={tx.transactionId}
+                    key={tx.userId}
                     className='py-2 grid grid-cols-5 items-center text-sm text-slate-200'
                   >
-                    <div className='truncate'>{formatTime(tx.timestamp)}</div>
+                    <div className='truncate'>
+                      {formatTime(tx.predictionTime)}
+                    </div>
                     <div className='truncate text-slate-400 font-mono'>
-                      #{tx.transactionId}
+                      {tx.userId}
                     </div>
                     <div className='truncate'>{formatAmount(tx.amount)}</div>
                     <div className='truncate'>
                       {(tx.fraudScore * 100).toFixed(1)}%
                     </div>
-                    <div className='truncate'>
-                      <span
-                        className={`px-2 py-0.5 rounded text-xs ${
-                          labelBad
-                            ? 'bg-red-600/80 text-white'
-                            : 'bg-green-600/80 text-white'
-                        }`}
-                        title={`threshold: ${threshold}`}
-                      >
-                        {labelBad ? '사기 의심' : '정상'}
-                      </span>
-                    </div>
+                    <div className='truncate'>{tx.merchant}</div>
                   </li>
                 );
               })}

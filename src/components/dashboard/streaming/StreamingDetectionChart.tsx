@@ -1,6 +1,6 @@
 'use client';
 
-import { useStartDemo } from '@/hooks/queries/dashboard/test-demo/useStartDemo';
+import { useStartDemo } from '@/hooks/queries/test-demo/useStartDemo';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CartesianGrid,

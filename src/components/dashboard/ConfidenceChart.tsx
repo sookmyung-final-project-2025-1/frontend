@@ -3,7 +3,7 @@
 import {
   useConfidenceQuery,
   type UseConfidenceQueryArgs,
-} from '@/hooks/queries/dashboard/useConfidenceQuery';
+} from '@/hooks/queries/model/useConfidenceQuery';
 import { useMemo } from 'react';
 import {
   Area,

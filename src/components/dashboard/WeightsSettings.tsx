@@ -4,8 +4,8 @@ import { useDashboardData } from '@/contexts/DashboardActionsContext';
 import type {
   WeightsRequest,
   WeightsResponse,
-} from '@/hooks/queries/dashboard/useWeights';
-import { useGetWeight } from '@/hooks/queries/dashboard/useWeights';
+} from '@/hooks/queries/model/useWeights';
+import { useGetWeight } from '@/hooks/queries/model/useWeights';
 import { useEffect, useMemo, useState } from 'react';
 
 function Slider({
