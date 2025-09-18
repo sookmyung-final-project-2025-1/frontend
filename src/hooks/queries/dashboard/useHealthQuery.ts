@@ -1,9 +1,12 @@
 import { useApiQuery } from '../useApi';
 
 export type HealthResponse = {
-  additionProp1: {};
-  additionProp2: {};
-  additionProp3: {};
+  avgConfidenceScore: number;
+  avgProcessingTime: number;
+  checkedAt: string;
+  p95ProcessingTime: number;
+  score: number;
+  status: string;
 };
 
 export const useHealthQuery = () =>

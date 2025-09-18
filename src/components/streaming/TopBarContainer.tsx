@@ -1,6 +1,6 @@
 'use client';
 
-import StreamingTopBar from '@/components/dashboard/streaming/StreamingTopBar';
+import StreamingTopBar from '@/components/streaming/StreamingTopBar';
 import { useDashboardData } from '@/contexts/DashboardActionsContext';
 import { useStreaming } from '@/contexts/StreamingContext';
 import { useMemo, useState } from 'react';
@@ -22,7 +22,7 @@ export default function TopBarContainer() {
 
   // 2017-01-01 ~ now 전체 시간 계산
   const { totalHours, startEpochMs, spanMs } = useMemo(() => {
-    const start = new Date('2017-01-01T00:00:00Z').getTime();
+    const start = new Date().getTime();
     const end = Date.now();
     const span = end - start;
     return {
