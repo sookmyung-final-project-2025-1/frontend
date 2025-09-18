@@ -1,5 +1,5 @@
 import { TransactionType } from '@/types/transaction.schema';
-import { useApiMutation } from '../../useApi';
+import { useApiMutation } from '../useApi';
 
 export const useCreateSampleTransaction = () => {
   return useApiMutation<TransactionType, void>({

@@ -1,4 +1,4 @@
-import { useApiQuery } from '../../useApi';
+import { useApiQuery } from '../useApi';
 
 type TestHealth = {
   status: string;

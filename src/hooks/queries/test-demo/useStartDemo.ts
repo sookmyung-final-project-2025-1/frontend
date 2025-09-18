@@ -1,4 +1,4 @@
-import { useApiMutation } from '../../useApi';
+import { useApiMutation } from '../useApi';
 
 type DemoType = {
   message: string;

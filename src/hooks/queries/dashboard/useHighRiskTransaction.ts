@@ -1,10 +1,18 @@
 import { useApiQuery } from '../useApi';
 
+// export type HighRiskTransaction = {
+//   transactionId: number;
+//   amount: number;
+//   fraudScore: number;
+//   timestamp: string;
+// };
+
 export type HighRiskTransaction = {
-  transactionId: number;
+  userId: number;
   amount: number;
   fraudScore: number;
-  timestamp: string;
+  merchant: string;
+  predictionTime: string;
 };
 
 export const useHighRiskTransaction = (limit: number) => {

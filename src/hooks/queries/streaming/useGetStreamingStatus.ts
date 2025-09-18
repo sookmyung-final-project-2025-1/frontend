@@ -1,4 +1,4 @@
-import { useApiQuery } from '../../useApi';
+import { useApiQuery } from '../useApi';
 
 export const useGetStreamingStatus = () =>
   useApiQuery({

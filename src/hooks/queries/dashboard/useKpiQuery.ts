@@ -5,11 +5,24 @@ export type UseKpiQueryArgs = Readonly<{
   endTime: string;
 }>;
 
+// export type Kpi = {
+//   totalTransactions: number;
+//   fraudDetected: number;
+//   fraudRate: number;
+//   avgConfidenceScore: number;
+// };
+
 export type Kpi = {
-  totalTransactions: number;
-  fraudDetected: number;
+  averageConfidenceScore: number;
+  averageProcessingTimeMs: number;
+  averageTransactionAmount: number;
   fraudRate: number;
-  avgConfidenceScore: number;
+  fraudTransactions: number;
+  medianProcessingTimeMs: number;
+  p95ProcessingTimeMs: number;
+  throughputPerHour: number;
+  totalTransactions: number;
+  uniqueUsers: number;
 };
 
 export const useKpiQuery = (args: UseKpiQueryArgs) => {

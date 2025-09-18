@@ -1,4 +1,4 @@
-import { useApiMutation } from '../../useApi';
+import { useApiMutation } from '../useApi';
 
 export const useStopStreaming = () =>
   useApiMutation<void, void>({
