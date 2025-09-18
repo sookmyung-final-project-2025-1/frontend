@@ -27,7 +27,7 @@ export default function SystemHealth() {
   if (!data) return <div>불러오는 중입니다...</div>;
 
   // 상태에 따른 색상 설정
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'HEALTHY':
         return 'text-green-600';
@@ -40,7 +40,7 @@ export default function SystemHealth() {
     }
   };
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'HEALTHY':
         return <CheckCircle className='w-6 h-6 text-green-500' />;
@@ -74,14 +74,14 @@ export default function SystemHealth() {
     confidence: Math.random() * 0.2 + 0.2,
   }));
 
-  const formatTime = (timeInSeconds) => {
+  const formatTime = (timeInSeconds: number) => {
     if (timeInSeconds === 0) return '0ms';
     const ms = timeInSeconds * 1000;
     return ms < 1 ? `${(ms * 1000).toFixed(0)}μs` : `${ms.toFixed(2)}ms`;
   };
 
   return (
-    <div className='min-h-screen p-6'>
+    <div className='min-h-screen p-6 text-[#ffffff] rounded-2xl border border-slate-800 bg-slate-900/40'>
       <div className='max-w-7xl mx-auto'>
         {/* 헤더 */}
         <div className='mb-8'>
@@ -96,7 +96,7 @@ export default function SystemHealth() {
           <div className='bg-white rounded-lg shadow-sm p-6 border'>
             <div className='flex items-center justify-between'>
               <div>
-                <p className='text-sm font-medium text-gray-600'>시스템 상태</p>
+                <p className='text-sm font-medium'>시스템 상태</p>
                 <p
                   className={`text-2xl font-bold ${getStatusColor(data.status)}`}
                 >
@@ -111,7 +111,7 @@ export default function SystemHealth() {
           <div className='bg-white rounded-lg shadow-sm p-6 border'>
             <div className='flex items-center justify-between'>
               <div>
-                <p className='text-sm font-medium text-gray-600'>헬스 스코어</p>
+                <p className='text-sm font-medium'>헬스 스코어</p>
                 <p className='text-2xl font-bold text-blue-600'>
                   {data.score}/100
                 </p>
@@ -124,9 +124,7 @@ export default function SystemHealth() {
           <div className='bg-white rounded-lg shadow-sm p-6 border'>
             <div className='flex items-center justify-between'>
               <div>
-                <p className='text-sm font-medium text-gray-600'>
-                  평균 처리 시간
-                </p>
+                <p className='text-sm font-medium'>평균 처리 시간</p>
                 <p className='text-2xl font-bold text-green-600'>
                   {formatTime(data.avgProcessingTime)}
                 </p>
@@ -153,11 +151,9 @@ export default function SystemHealth() {
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8'>
           {/* 헬스 스코어 원형 차트 */}
           <div className='bg-white rounded-lg shadow-sm p-6 border'>
-            <h3 className='text-lg font-semibold text-gray-900 mb-4'>
-              헬스 스코어
-            </h3>
+            <h3 className='text-lg font-semibold mb-4'>헬스 스코어</h3>
             <div className='h-64'>
-              <ResponsiveContainer width='100%' height='100%'>
+              <ResponsiveContainer width='100%' height='60%'>
                 <PieChart>
                   <Pie
                     data={scoreData}
@@ -176,7 +172,7 @@ export default function SystemHealth() {
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-              <div className='text-center mt-4'>
+              <div className='text-center mt-4 flex gap-2'>
                 <p className='text-3xl font-bold text-blue-600'>{data.score}</p>
                 <p className='text-sm text-gray-500'>/ 100</p>
               </div>
@@ -185,9 +181,7 @@ export default function SystemHealth() {
 
           {/* 처리 시간 비교 차트 */}
           <div className='bg-white rounded-lg shadow-sm p-6 border'>
-            <h3 className='text-lg font-semibold text-gray-900 mb-4'>
-              처리 시간 비교
-            </h3>
+            <h3 className='text-lg font-semibold  mb-4'>처리 시간 비교</h3>
             <div className='h-64'>
               <ResponsiveContainer width='100%' height='100%'>
                 <BarChart data={processingTimeData}>
@@ -195,11 +189,12 @@ export default function SystemHealth() {
                   <XAxis dataKey='name' />
                   <YAxis tickFormatter={(value) => `${value.toFixed(2)}ms`} />
                   <Tooltip
-                    formatter={(value) => [
-                      `${value.toFixed(2)}ms`,
-                      '처리 시간',
-                    ]}
+                    formatter={(value) => {
+                      const num = Number(value);
+                      return [`${num.toFixed(2)}ms`, '처리 시간'];
+                    }}
                   />
+
                   <Bar dataKey='value' radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -209,9 +204,7 @@ export default function SystemHealth() {
 
         {/* 24시간 트렌드 차트 */}
         <div className='bg-white rounded-lg shadow-sm p-6 border'>
-          <h3 className='text-lg font-semibold text-gray-900 mb-4'>
-            24시간 트렌드
-          </h3>
+          <h3 className='text-lg font-semibold mb-4'>24시간 트렌드</h3>
           <div className='h-80'>
             <ResponsiveContainer width='100%' height='100%'>
               <LineChart data={timeSeriesData}>
@@ -227,9 +220,12 @@ export default function SystemHealth() {
                   formatter={(value, name) => {
                     if (name === 'score') return [value, '헬스 스코어'];
                     if (name === 'avgTime')
-                      return [`${(value * 1000).toFixed(2)}ms`, '처리 시간'];
+                      return [
+                        `${(Number(value) * 1000).toFixed(2)}ms`,
+                        '처리 시간',
+                      ];
                     if (name === 'confidence')
-                      return [`${(value * 100).toFixed(1)}%`, '신뢰도'];
+                      return [`${(Number(value) * 100).toFixed(1)}%`, '신뢰도'];
                     return [value, name];
                   }}
                 />
@@ -266,46 +262,44 @@ export default function SystemHealth() {
 
         {/* 세부 정보 테이블 */}
         <div className='bg-white rounded-lg shadow-sm p-6 border mt-6'>
-          <h3 className='text-lg font-semibold text-gray-900 mb-4'>
-            세부 메트릭
-          </h3>
+          <h3 className='text-lg font-semibold mb-4'>세부 메트릭</h3>
           <div className='overflow-x-auto'>
             <table className='min-w-full divide-y divide-gray-200'>
               <tbody className='bg-white divide-y divide-gray-200'>
                 <tr>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200'>
                     헬스 스코어
                   </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-400'>
                     {data.score}/100
                   </td>
                 </tr>
                 <tr>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200'>
                     평균 처리 시간
                   </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-400'>
                     {formatTime(data.avgProcessingTime)}
                   </td>
                 </tr>
                 <tr>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200'>
                     P95 처리 시간
                   </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-400'>
                     {formatTime(data.p95ProcessingTime)}
                   </td>
                 </tr>
                 <tr>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200'>
                     평균 신뢰도 점수
                   </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-400'>
                     {(data.avgConfidenceScore * 100).toFixed(2)}%
                   </td>
                 </tr>
                 <tr>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
                     시스템 상태
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap'>

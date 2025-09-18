@@ -147,30 +147,27 @@ function DashboardInner() {
         </div>
       </div>
 
-      {/* 하단 영역 (두 카드만) */}
-      <div className='grid grid-cols-1 xl:grid-cols-2 gap-8'>
-        {/* 특성 중요도 */}
-        <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-8 relative'>
-          <div className='flex items-start gap-3 mb-6'>
-            <h3 className='text-xl font-semibold text-slate-200 flex-1 min-w-0 truncate'>
-              특성 중요도
-            </h3>
-          </div>
-          <div className='h-[350px]'>
-            <FeatureImportanceChart data={featureImportance} />
-          </div>
+      {/* 특성 중요도 */}
+      <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-8 relative'>
+        <div className='flex items-start gap-3 mb-6'>
+          <h3 className='text-xl font-semibold text-slate-200 flex-1 min-w-0 truncate'>
+            특성 중요도
+          </h3>
         </div>
+        <div className='h-[350px]'>
+          <FeatureImportanceChart data={featureImportance} />
+        </div>
+      </div>
 
-        {/* 추가 위젯 자리 */}
-        <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-8 relative'>
-          <div className='flex items-start gap-3 mb-6'>
-            <h3 className='text-xl font-semibold text-slate-200 flex-1 min-w-0 truncate'>
-              시스템 헬스 상태
-            </h3>
-          </div>
-          <div className='min-h-[500px]'>
-            <SystemHealth />
-          </div>
+      {/* 추가 위젯 자리 */}
+      <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-8 relative'>
+        <div className='flex items-start gap-3 mb-6'>
+          <h3 className='text-xl font-semibold text-slate-200 flex-1 min-w-0 truncate'>
+            시스템 헬스 상태
+          </h3>
+        </div>
+        <div className='min-h-[500px]'>
+          <SystemHealth />
         </div>
       </div>
 
