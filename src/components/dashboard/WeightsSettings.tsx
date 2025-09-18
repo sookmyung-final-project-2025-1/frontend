@@ -149,9 +149,7 @@ export default function WeightsSettings({
       }}
       className={`rounded-2xl border border-slate-800 bg-slate-900/40 p-4 space-y-6 ${className ?? ''}`}
     >
-      <div className='text-sm text-slate-300 mb-2'>
-        앙상블 가중치 (정규화 반영 미리보기)
-      </div>
+      <div className='text-sm text-slate-300 mb-2'>앙상블 가중치</div>
 
       {!serverSnapshot && isLoading && (
         <div className='text-xs text-slate-500'>현재 가중치를 불러오는 중…</div>
@@ -162,7 +160,7 @@ export default function WeightsSettings({
         </div>
       )}
 
-      <div className='grid grid-cols-3 gap-4'>
+      <div className='grid grid-cols-1 grid-rows-3 gap-4 w-full'>
         <WeightControl
           label='LGBM'
           value={weights.lgbmWeight}
@@ -183,8 +181,8 @@ export default function WeightsSettings({
         />
       </div>
 
-      <div className='flex gap-8 items-center'>
-        <div className='flex gap-5'>
+      <div className='flex flex-col gap-8 justify-center'>
+        <div className='flex flex-col gap-5'>
           <label className='flex items-center gap-2'>
             <input
               type='checkbox'

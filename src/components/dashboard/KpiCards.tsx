@@ -9,6 +9,9 @@ export default function KpiCards({ kpi }: { kpi?: Kpi | null }) {
   const fmtPct = (v?: number) =>
     typeof v === 'number' ? `${(v * 100).toFixed(1)}%` : '-';
 
+  const fmtFraudPct = (v?: number) =>
+    typeof v === 'number' ? `${v.toFixed(1)}%` : '-';
+
   const fmtMs = (v?: number) => {
     if (typeof v !== 'number') return '-';
     if (v >= 1000) return `${(v / 1000).toFixed(2)} s`;
@@ -22,7 +25,7 @@ export default function KpiCards({ kpi }: { kpi?: Kpi | null }) {
   const items = [
     { label: '전체 거래 수', value: fmtInt(kpi?.totalTransactions) },
     { label: '사기 탐지 건수', value: fmtInt(kpi?.fraudTransactions) },
-    { label: '사기율', value: fmtPct(kpi?.fraudRate) },
+    { label: '사기율', value: fmtFraudPct(kpi?.fraudRate) },
     { label: '평균 신뢰도', value: fmtPct(kpi?.averageConfidenceScore) },
 
     { label: '평균 처리시간', value: fmtMs(kpi?.averageProcessingTimeMs) },
