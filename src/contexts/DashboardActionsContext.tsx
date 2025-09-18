@@ -66,8 +66,11 @@ export function isoNow() {
   return new Date().toISOString();
 }
 export function isoHoursAgo(h: number) {
-  return new Date(Date.now() - h * 3600 * 1000).toISOString();
+  const baseMs = new Date('2017-01-01T00:00:00+09:00').getTime(); // ✅ ms로
+  const target = new Date(baseMs - h * 3600 * 1000);
+  return target.toISOString(); // 항상 Z(UTC)로 나옴
 }
+
 /** 도메인 형태 { lgbm, xgb, cat } -> API 스펙(WeightsRequest) 변환기 */
 export function toWeightsRequest(w: Record<string, number>): WeightsRequest {
   return {

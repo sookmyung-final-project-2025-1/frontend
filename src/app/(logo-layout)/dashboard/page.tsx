@@ -165,7 +165,7 @@ function DashboardInner() {
         <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-8 relative'>
           <div className='flex items-start gap-3 mb-6'>
             <h3 className='text-xl font-semibold text-slate-200 flex-1 min-w-0 truncate'>
-              시스템 상태
+              시스템 헬스 상태
             </h3>
           </div>
           <div className='min-h-[500px]'>
@@ -198,8 +198,8 @@ function DashboardInner() {
 
 export default function DashboardPage() {
   const initialTimeRange = {
-    startTime: '2017-01-01T00:00:00+09:00',
-    endTime: '2018-09-16T23:59:59.999+09:00',
+    startTime: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    endTime: new Date().toISOString(),
   };
 
   return (

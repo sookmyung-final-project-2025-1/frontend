@@ -223,7 +223,7 @@ export default function TopBar({
           <div className='flex items-center gap-2'>
             <span className='text-sm text-slate-400'>시점 이동</span>
             <input
-              placeholder='2018-02-03T12:00:00Z'
+              placeholder={new Date().toISOString()}
               onKeyDown={handleSeekKeyDown}
               className='w-48 px-3 py-1 rounded-md bg-slate-800 border border-slate-700 text-sm outline-none focus:border-blue-500'
             />
