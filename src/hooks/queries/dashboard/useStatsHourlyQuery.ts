@@ -14,12 +14,12 @@ export const useStatsHourlyQuery = (args: UseStatsHourlyQueryArgs) => {
   }).toString();
   const isEnabled = Boolean(startTime && endTime);
 
-  return useApiQuery<UseStatsHourlyQueryArgs>({
-    queryKey: ['stats', 'hourly'],
+  return useApiQuery<UseStatsHourlyQueryArgs[]>({
+    queryKey: ['stats', 'hourly', args],
     queryOptions: {
       endpoint: `/proxy/dashboard/stats/hourly?${hourlyParameters}`,
       authorization: true,
     },
-    fetchOptions: { enabled: !!isEnabled, staleTime: 0 },
+    fetchOptions: { enabled: !!isEnabled },
   });
 };

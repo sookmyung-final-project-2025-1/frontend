@@ -5,10 +5,24 @@ export type UseKpiQueryArgs = Readonly<{
   endTime: string;
 }>;
 
+// export type Kpi = {
+//   totalTransactions: number;
+//   fraudDetected: number;
+//   fraudRate: number;
+//   avgConfidenceScore: number;
+// };
+
 export type Kpi = {
-  additionProp1: {};
-  additionProp2: {};
-  additionProp3: {};
+  averageConfidenceScore: number;
+  averageProcessingTimeMs: number;
+  averageTransactionAmount: number;
+  fraudRate: number;
+  fraudTransactions: number;
+  medianProcessingTimeMs: number;
+  p95ProcessingTimeMs: number;
+  throughputPerHour: number;
+  totalTransactions: number;
+  uniqueUsers: number;
 };
 
 export const useKpiQuery = (args: UseKpiQueryArgs) => {
@@ -23,9 +37,9 @@ export const useKpiQuery = (args: UseKpiQueryArgs) => {
   return useApiQuery<Kpi>({
     queryKey: ['dashboard', 'kpi', startTime, endTime],
     queryOptions: {
-      endpoint: `/proxy/dashboard/kpis?${kpiParameters}}`,
+      endpoint: `/proxy/dashboard/kpis?${kpiParameters}`,
       authorization: true,
     },
-    fetchOptions: { enabled: isEnabled, staleTime: 0 },
+    fetchOptions: { enabled: isEnabled, staleTime: 20_000 },
   });
 };

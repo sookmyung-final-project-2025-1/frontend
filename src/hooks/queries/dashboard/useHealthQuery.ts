@@ -13,5 +13,5 @@ export const useHealthQuery = () =>
       endpoint: '/proxy/dashboard/system-health',
       authorization: false,
     },
-    fetchOptions: { staleTime: 0 },
+    fetchOptions: { staleTime: 10_000 },
   });

@@ -2,9 +2,10 @@ import { QUERY_KEYS } from '@/hooks/queryKeys';
 import { useApiMutation, useApiQuery } from '../useApi';
 
 export type WeightsResponse = {
-  additionProp1: {};
-  additionProp2: {};
-  additionProp3: {};
+  lgbm: number;
+  xgboost: number;
+  catboost: number;
+  threshold: number;
 };
 
 export type WeightsRequest = {
@@ -19,7 +20,7 @@ export const useSaveWeightsMutation = () =>
   useApiMutation<WeightsResponse, WeightsRequest>({
     method: 'PUT',
     endpoint: '/proxy/model/weights',
-    authorization: false,
+    authorization: true,
     body: (v) => v,
     invalidateKeys: [QUERY_KEYS.weight],
   });
@@ -30,5 +31,8 @@ export const useGetWeight = () =>
     queryOptions: {
       endpoint: '/proxy/model/weights',
       authorization: true,
+    },
+    fetchOptions: {
+      staleTime: 20_000,
     },
   });

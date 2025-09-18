@@ -1,4 +1,5 @@
 import ExampleDayCharts from '@/components/report/DayCharts';
+import ReportHeader from '@/components/report/ReportHeader';
 
 const CARDSTYLE =
   'rounded-2xl border border-black/5 bg-white/70 backdrop-blur-sm shadow-sm';
@@ -15,22 +16,7 @@ export default async function ReportPage({
       <p className='text-center text-2xl md:text-3xl font-semibold text-[#0E2975] [text-shadow:_4px_5px_12px_rgba(0,0,0,0.15)]'>
         결제지킴이 사기거래 탐지 보고서
       </p>
-      <section className={`${CARDSTYLE} p-6 flex items-center justify-between`}>
-        <div>
-          <h1 className='text-2xl font-semibold text-[#0E2975]'>
-            거래 내역 이름
-          </h1>
-          <p className='text-gray-70 text-sm'>2025.09.09T05:24:22Z</p>
-        </div>
-        <div className='flex gap-2'>
-          <button className='rounded-lg border px-3 py-2 hover:bg-black/5'>
-            이메일 전송하기
-          </button>
-          <button className='rounded-lg bg-[#0E2975] text-[#ffffff] px-3 py-2 hover:opacity-90'>
-            PDF 다운로드
-          </button>
-        </div>
-      </section>
+      <ReportHeader paymentId={paymentId} />
 
       <section className='grid grid-cols-1 md:grid-cols-4 gap-4'>
         {[
