@@ -33,6 +33,6 @@ export const useGetWeight = () =>
       authorization: true,
     },
     fetchOptions: {
-      staleTime: 20_000,
+      staleTime: 200_000,
     },
   });

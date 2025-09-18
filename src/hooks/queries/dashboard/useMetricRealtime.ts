@@ -35,6 +35,6 @@ export const useMetricRealtime = () =>
       authorization: true,
     },
     fetchOptions: {
-      staleTime: 0,
+      staleTime: 20_000,
     },
   });
