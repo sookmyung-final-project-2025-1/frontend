@@ -10,14 +10,14 @@ import {
   useState,
 } from 'react';
 
-import { useChangeSpeed } from '@/hooks/queries/dashboard/streaming/useChangeSpeed';
-import { useGetStreamingStatus } from '@/hooks/queries/dashboard/streaming/useGetStreamingStatus';
-import { useJumpStreaming } from '@/hooks/queries/dashboard/streaming/useJumpStreaming';
-import { usePauseStreaming } from '@/hooks/queries/dashboard/streaming/usePauseStreaming';
-import { useResumeStreaming } from '@/hooks/queries/dashboard/streaming/useResumeStreaming';
-import { useSetStreamingTimemachine } from '@/hooks/queries/dashboard/streaming/useSetStreamingTimemachine';
-import { useStartStreamingRealtime } from '@/hooks/queries/dashboard/streaming/useStartStreamingRealtime';
-import { useStopStreaming } from '@/hooks/queries/dashboard/streaming/useStopStreaming';
+import { useChangeSpeed } from '@/hooks/queries/streaming/useChangeSpeed';
+import { useGetStreamingStatus } from '@/hooks/queries/streaming/useGetStreamingStatus';
+import { useJumpStreaming } from '@/hooks/queries/streaming/useJumpStreaming';
+import { usePauseStreaming } from '@/hooks/queries/streaming/usePauseStreaming';
+import { useResumeStreaming } from '@/hooks/queries/streaming/useResumeStreaming';
+import { useSetStreamingTimemachine } from '@/hooks/queries/streaming/useSetStreamingTimemachine';
+import { useStartStreamingRealtime } from '@/hooks/queries/streaming/useStartStreamingRealtime';
+import { useStopStreaming } from '@/hooks/queries/streaming/useStopStreaming';
 
 export type DetectionResult = {
   timestamp: string;

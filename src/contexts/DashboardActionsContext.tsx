@@ -1,14 +1,5 @@
 'use client';
 
-import {
-  useConfidenceQuery,
-  type ConfidenceResponse,
-  type UseConfidenceQueryArgs,
-} from '@/hooks/queries/dashboard/useConfidenceQuery';
-import {
-  useFeatureImportanceQuery,
-  type FeatureImportanceResponse,
-} from '@/hooks/queries/dashboard/useFeatureImportanceQuery';
 import { useHealthQuery } from '@/hooks/queries/dashboard/useHealthQuery';
 import {
   useKpiQuery,
@@ -16,14 +7,23 @@ import {
   type UseKpiQueryArgs,
 } from '@/hooks/queries/dashboard/useKpiQuery';
 import {
+  useConfidenceQuery,
+  type ConfidenceResponse,
+  type UseConfidenceQueryArgs,
+} from '@/hooks/queries/model/useConfidenceQuery';
+import {
+  useFeatureImportanceQuery,
+  type FeatureImportanceResponse,
+} from '@/hooks/queries/model/useFeatureImportanceQuery';
+import {
   ThresholdResponse,
   useSaveThresholdMutation,
-} from '@/hooks/queries/dashboard/useSaveThreshold';
+} from '@/hooks/queries/model/useSaveThreshold';
 import {
   useSaveWeightsMutation,
   WeightsResponse,
   type WeightsRequest,
-} from '@/hooks/queries/dashboard/useWeights';
+} from '@/hooks/queries/model/useWeights';
 import {
   createContext,
   PropsWithChildren,
