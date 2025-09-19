@@ -182,21 +182,36 @@ export default function SystemHealth() {
 
           {/* 처리 시간 비교 차트 */}
           <div className='bg-white rounded-lg shadow-sm p-6 border'>
-            <h3 className='text-lg font-semibold  mb-4'>처리 시간 비교</h3>
+            <h3 className='text-lg font-semibold mb-4'>처리 시간 비교</h3>
             <div className='h-64'>
               <ResponsiveContainer width='100%' height='100%'>
-                <BarChart data={processingTimeData}>
+                <BarChart
+                  data={processingTimeData}
+                  margin={{ top: 10, right: 16, bottom: 8, left: 95 }} // ← 왼쪽 여백 추가
+                  barCategoryGap='10%' // ← 막대 간격 확장(상대적으로 얇게)
+                >
                   <CartesianGrid strokeDasharray='3 3' />
-                  <XAxis dataKey='name' />
-                  <YAxis tickFormatter={(value) => `${value.toFixed(2)}ms`} />
+                  <XAxis
+                    dataKey='name'
+                    padding={{ left: 20, right: 20 }} // ← 양 끝단 패딩으로 중앙 정렬 느낌
+                    tickMargin={8}
+                  />
+                  <YAxis
+                    width={64} // ← Y축 레이블 영역 확보(왼쪽 끼임 방지)
+                    tickMargin={8}
+                    tickFormatter={(v: number) => formatTime(v)}
+                  />
                   <Tooltip
                     formatter={(value) => {
                       const num = Number(value);
                       return [`${num.toFixed(2)}ms`, '처리 시간'];
                     }}
                   />
-
-                  <Bar dataKey='value' radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey='value'
+                    radius={[2, 2, 0, 0]}
+                    barSize={70} // ← 막대 두께 고정(대략 절반 느낌)
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -307,10 +322,10 @@ export default function SystemHealth() {
                     <span
                       className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                         data.status === 'HEALTHY'
-                          ? 'bg-green-100 text-green-800'
+                          ? 'bg-[#DCFCE7] text-[#166534]'
                           : data.status === 'WARNING'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
+                            ? 'bg-[#FEF9C3] text-[#854D0E]'
+                            : 'bg-[#FEE2E2] text-[#991B1B]'
                       }`}
                     >
                       {data.status}

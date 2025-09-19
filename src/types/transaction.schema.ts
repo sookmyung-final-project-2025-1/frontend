@@ -37,17 +37,15 @@ export const TransactionSchema = z.object({
   transactionTime: z.string(),
   virtualTime: z.string(),
   isFraud: z.boolean(),
-  hadGoldLabel: z.boolean(),
-  anonymizedFeatures: z.string(),
+  hasGoldLabel: z.boolean(),
+  anonymizedFeatures: z.string().nullable(),
   latitude: z.number(),
   longitude: z.number(),
   deviceFingerprint: z.string(),
   ipAddress: z.string(),
-  status: z.enum(Status),
-  externalTransactionOd: z.string(),
-  goldLabel: z.boolean(),
+  status: z.string(),
+  externalTransactionId: z.string(),
 });
-
 export type PageableType = z.infer<typeof PageableSchema>;
 export type TransactionRequestType = z.infer<typeof TransactionRequestSchema>;
 export type TransactionType = z.infer<typeof TransactionSchema>;

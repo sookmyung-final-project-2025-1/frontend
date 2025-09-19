@@ -160,7 +160,7 @@ export default function WeightsSettings({
         </div>
       )}
 
-      <div className='grid grid-cols-1 grid-rows-3 gap-4 w-full'>
+      <div className='grid grid-cols-3 grid-rows-1 gap-2'>
         <WeightControl
           label='LGBM'
           value={weights.lgbmWeight}
@@ -181,8 +181,8 @@ export default function WeightsSettings({
         />
       </div>
 
-      <div className='flex flex-col gap-8 justify-center'>
-        <div className='flex flex-col gap-5'>
+      <div className='flex flex-col gap-8 justify-center items-end'>
+        <div className='flex gap-5'>
           <label className='flex items-center gap-2'>
             <input
               type='checkbox'
@@ -249,9 +249,16 @@ function WeightControl({
 }) {
   return (
     <div className='space-y-2'>
-      <div className='text-xs text-slate-400'>{label}</div>
-      <Slider value={value} onChange={onChange} min={0} max={1} step={0.01} />
-      <div className='text-xs text-slate-400'>
+      <div className='text-s text-slate-400'>{label}</div>
+      <Slider
+        value={value}
+        onChange={onChange}
+        min={0}
+        max={1}
+        step={0.01}
+        className='w-[280px] h-2 cursor-pointer'
+      />
+      <div className='text-s text-slate-400'>
         raw {value} · norm {normalized.toFixed(3)}
       </div>
     </div>

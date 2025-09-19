@@ -27,7 +27,12 @@ export default function DashboardPage() {
       <section className='grid grid-cols-1 gap-8'>
         <div className='col-span-1'>
           <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-8 relative'>
-            <FraudTrend />
+            <h2 className='text-xl font-semibold text-slate-200'>
+              사기 거래 트렌드 분석
+            </h2>
+            <div>
+              <FraudTrend />
+            </div>
           </div>
         </div>
       </section>

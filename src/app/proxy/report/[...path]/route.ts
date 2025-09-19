@@ -12,14 +12,14 @@ function normalizeBase(raw?: string | null) {
 }
 const API = normalizeBase(process.env.API_BASE_URL);
 
-// 개발 환경에서 API URL 확인
+// 개발 환경 로깅
 if (process.env.NODE_ENV === 'development') {
   console.log('🔗 API Base URL:', API);
 }
 
-// TLS 검증 우회 에이전트 생성
+// TLS 검증 우회 (자체서명 등)
 const httpsAgent = new https.Agent({
-  rejectUnauthorized: false, // 자체 서명 인증서 허용
+  rejectUnauthorized: false,
   ...(process.env.API_SNI_HOST ? { servername: process.env.API_SNI_HOST } : {}),
 });
 
@@ -41,7 +41,6 @@ const HOP = new Set([
 /** req.headers에서 accessToken 쿠키 추출 */
 function getAccessTokenFromCookie(req: NextRequest): string | null {
   const cookie = req.headers.get('cookie') ?? '';
-  // 간단 파서
   for (const part of cookie.split(';')) {
     const [k, ...rest] = part.trim().split('=');
     if (k === 'accessToken') {
@@ -52,7 +51,7 @@ function getAccessTokenFromCookie(req: NextRequest): string | null {
   return null;
 }
 
-/** 업스트림으로 넘길 헤더 구성 (Authorization 보강, Cookie 미전달) */
+/** 업스트림으로 넘길 헤더 구성 */
 function buildUpstreamHeaders(req: NextRequest): Headers {
   const h = new Headers();
 
@@ -62,13 +61,13 @@ function buildUpstreamHeaders(req: NextRequest): Headers {
     if (v) h.set(k, v);
   }
 
-  // 인코딩 강제(압축 해제)
+  // 압축 해제 강제
   h.set('accept-encoding', 'identity');
 
-  // Host SNI 강제 (필요시)
+  // SNI 고정 필요 시
   if (process.env.API_SNI_HOST) h.set('host', process.env.API_SNI_HOST!);
 
-  // Authorization 우선순위: 요청 헤더 → 쿠키 accessToken
+  // Authorization: 요청 → 쿠키(accessToken) 순
   const auth = req.headers.get('authorization');
   if (auth && auth.trim().length > 0) {
     h.set('authorization', auth);
@@ -77,9 +76,7 @@ function buildUpstreamHeaders(req: NextRequest): Headers {
     if (token) h.set('authorization', `Bearer ${token}`);
   }
 
-  // ❌ Cookie는 업스트림으로 전달하지 않음 (CSRF 간섭 방지)
-  // 필요하다면 여기서 h.set('cookie', ...) 처리
-
+  // Cookie는 기본 전달 안함 (원하면 여기서 설정)
   return h;
 }
 
@@ -91,10 +88,10 @@ function filterResHeaders(src: Headers) {
   return h;
 }
 
-// 공통 요청 처리 함수
-async function handleRequest(
+async function handleProxy(
   req: NextRequest,
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+  pathSegments: string[] = []
 ) {
   if (!API) {
     return NextResponse.json(
@@ -103,29 +100,18 @@ async function handleRequest(
     );
   }
 
-  const upstreamUrl = `${API}/dashboard/alerts${req.nextUrl.search}`;
+  const subPath = pathSegments.length ? `/${pathSegments.join('/')}` : '';
+  const upstreamUrl = `${API}/reports${subPath}${req.nextUrl.search || ''}`;
 
   try {
-    const shouldSendBody = method !== 'GET';
+    const shouldSendBody = !['GET', 'HEAD'].includes(method);
     const requestBody = shouldSendBody ? await req.arrayBuffer() : undefined;
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('📤 API 요청:');
-      console.log('Method:', method);
-      console.log('URL:', upstreamUrl);
-      console.log(
-        'Request Headers:',
-        Object.fromEntries(req.headers.entries())
-      );
+      console.log('📤 REPORTS API 요청:', method, upstreamUrl);
       if (requestBody) {
-        const bodyText = Buffer.from(requestBody).toString('utf8');
-        console.log('Request Body:', bodyText);
-        try {
-          const jsonBody = JSON.parse(bodyText);
-          console.log('✅ JSON 파싱 성공:', jsonBody);
-        } catch (e) {
-          console.log('❌ JSON 파싱 실패:', e);
-        }
+        const txt = Buffer.from(requestBody).toString('utf8');
+        console.log('Body:', txt);
       }
     }
 
@@ -137,43 +123,14 @@ async function handleRequest(
       // @ts-ignore Node 전용 옵션
       agent: upstreamUrl.startsWith('https:') ? httpsAgent : undefined,
     };
-
-    if (shouldSendBody && requestBody) {
-      fetchOptions.body = requestBody;
-    }
+    if (requestBody) fetchOptions.body = requestBody;
 
     const res = await fetch(upstreamUrl, fetchOptions);
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📥 API 응답:');
-      console.log('Status:', res.status);
-      console.log(
-        'Response Headers:',
-        Object.fromEntries(res.headers.entries())
-      );
-    }
-
     const buf = Buffer.from(await res.arrayBuffer());
-
     if (process.env.NODE_ENV === 'development') {
-      const responseText = buf.toString('utf8');
-      if (res.status >= 400) {
-        console.log('❌ Error Response Body:', responseText);
-        try {
-          const errorJson = JSON.parse(responseText);
-          console.log('📋 구조화된 에러 정보:', {
-            timestamp: errorJson.timestamp,
-            status: errorJson.status,
-            error: errorJson.error,
-            message: errorJson.message,
-            details: errorJson.details,
-          });
-        } catch {
-          console.log('텍스트 응답:', responseText);
-        }
-      } else {
-        console.log('✅ Success Response:', responseText);
-      }
+      console.log('📥 REPORTS API 응답:', res.status);
+      if (res.status >= 400) console.log('Body:', buf.toString('utf8'));
     }
 
     return new NextResponse(buf, {
@@ -181,27 +138,49 @@ async function handleRequest(
       headers: filterResHeaders(res.headers),
     });
   } catch (e: any) {
-    console.error('Fetch error details:', {
+    console.error('REPORTS proxy error:', {
       message: e?.message,
       code: e?.code,
-      cause: e?.cause,
-      url: upstreamUrl,
+      url: e?.config?.url ?? upstreamUrl,
     });
-
     return NextResponse.json(
       {
         message: 'Upstream fetch failed',
         url: upstreamUrl,
         error: e?.message ?? String(e),
-        code: e?.code ?? null,
-        causeCode: e?.cause?.code ?? null,
       },
       { status: 502 }
     );
   }
 }
 
-// GET 요청 핸들러
-export async function GET(req: NextRequest) {
-  return handleRequest(req, 'GET');
+export async function GET(
+  req: NextRequest,
+  ctx: { params: { path?: string[] } }
+) {
+  return handleProxy(req, 'GET', ctx.params.path ?? []);
+}
+export async function POST(
+  req: NextRequest,
+  ctx: { params: { path?: string[] } }
+) {
+  return handleProxy(req, 'POST', ctx.params.path ?? []);
+}
+export async function PUT(
+  req: NextRequest,
+  ctx: { params: { path?: string[] } }
+) {
+  return handleProxy(req, 'PUT', ctx.params.path ?? []);
+}
+export async function PATCH(
+  req: NextRequest,
+  ctx: { params: { path?: string[] } }
+) {
+  return handleProxy(req, 'PATCH', ctx.params.path ?? []);
+}
+export async function DELETE(
+  req: NextRequest,
+  ctx: { params: { path?: string[] } }
+) {
+  return handleProxy(req, 'DELETE', ctx.params.path ?? []);
 }
