@@ -1,4 +1,5 @@
 'use client';
+'use client';
 
 import { Info, ListChecks, RefreshCw, UploadCloud } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
