@@ -103,7 +103,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const res = await fetch(upstreamUrl, {
-      method: 'POST',
+      method: 'PUT',
       headers: pickReqHeaders(req.headers),
       body: requestBody,
       cache: 'no-store',

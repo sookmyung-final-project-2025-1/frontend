@@ -64,7 +64,7 @@ export default function DashboardTabs() {
           <Bell className='w-4 h-4' />
           <span className='hidden sm:inline'>알람</span>
           {alarmCount > 0 && (
-            <span className='ml-1 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-medium px-1.5 py-0.5'>
+            <span className='ml-1 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[13px] font-medium px-1.5 py-0.5'>
               {alarmCount}
             </span>
           )}

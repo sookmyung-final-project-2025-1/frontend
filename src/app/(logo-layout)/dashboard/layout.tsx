@@ -27,7 +27,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       initialKpiRange={initialTimeRange}
       initialSeriesProbRange={initialTimeRange}
     >
-      <div className='bg-gradient-to-b from-slate-950 to-slate-900 text-slate-100 min-w-screen pb-12'>
+      <div className='bg-gradient-to-b from-slate-950 to-slate-900 text-slate-100 min-w-screen min-h-screen pb-12 overflow-x-hidden'>
         <div className='w-[80vw] mx-auto relative'>
           <header className='sticky top-0 z-10 h-[72px] w-full bg-white/50 backdrop-blur pt-[15px]'>
             <Link
