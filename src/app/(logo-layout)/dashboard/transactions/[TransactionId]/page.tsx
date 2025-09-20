@@ -1,6 +1,6 @@
 'use client';
 
-import TransactionDetailView from '@/components/transactions/detail/TransactionDetilView';
+import TransactionDetailView from '@/components/transactions/detail/TransactionDetailView';
 import { useTransactionDetail } from '@/hooks/queries/transaction/useTransactionDetail';
 
 export default function TransactionDetailPage({

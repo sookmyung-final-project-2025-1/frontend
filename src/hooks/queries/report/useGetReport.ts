@@ -1,78 +1,83 @@
-// src/hooks/queries/reports/useGetReport.ts
+// src/hooks/queries/report/useGetReport.ts
 import useBuildParams from '@/lib/useBuildParams';
+import type {
+  PaginatedReports,
+  ReportItem,
+  ReportItemStatus,
+} from '@/types/report-types';
+import { useMemo } from 'react';
 import { useApiQuery } from '../useApi';
 
-export type ReportStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW';
-export type ReportPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-
-export type ReportItem = {
-  reportId: number;
-  transactionId: number;
-  reportedBy: string;
-  reason: string;
-  description: string;
-  status: ReportStatus | string; // 서버가 임시 문자열을 보낼 수도 있어 여유 둠
-  reviewedBy: string;
-  reviewComment: string;
-  isFraudConfirmed: boolean;
-  reportedAt: string; // ISO
-  reviewedAt: string; // ISO
-  transactionDetails: Record<string, unknown>;
-  priority: ReportPriority | string;
-};
-
-export type ReportPage = {
-  totalPages: number;
-  totalElements: number;
-  size: number;
-  content: ReportItem[];
-};
-
-export type PageableType = {
-  page: number;
-  size: number;
-  sort?: string[] | string;
-};
-
-type PageableMode = 'nested' | 'flat' | 'json';
-const PAGEABLE_MODE: PageableMode = 'nested';
-
-function useAddPageable(
-  params: URLSearchParams,
-  pageable: PageableType,
-  mode: PageableMode
-) {
-  const { page, size, sort } = pageable;
-
-  const add = (key: string, value: string | string[]) => {
-    if (Array.isArray(value)) value.forEach((v) => params.append(key, v));
-    else params.set(key, value);
-  };
-
-  if (mode === 'nested') {
-    add('pageable.page', String(page));
-    add('pageable.size', String(size));
-    if (sort) add('pageable.sort', Array.isArray(sort) ? sort : [sort]);
-    return;
-  }
-
-  if (mode === 'flat') {
-    add('page', String(page));
-    add('size', String(size));
-    if (sort) add('sort', Array.isArray(sort) ? sort : [sort]);
-    return;
-  }
-
-  params.set('pageable', JSON.stringify({ page, size, sort }));
-}
-
-export type ReportArgs = {
-  status?: ReportStatus; // 선택적으로 필터 가능하게
+type ReportArgs = {
+  status: ReportItemStatus | undefined;
   reportedBy?: string;
-  startDate?: string; // YYYY-MM-DD or ISO
-  endDate?: string; // YYYY-MM-DD or ISO
-  pageable: PageableType;
+  startDate?: string;
+  endDate?: string;
+  pageable: { page: number; size: number; sort?: string[] };
 };
+
+const VALID_STATUS: ReportItemStatus[] = [
+  'PENDING',
+  'UNDER_REVIEW',
+  'APPROVED',
+  'REJECTED',
+];
+
+const normalizeItem = (r: any): ReportItem => ({
+  reportId: Number(r.reportId ?? r.id ?? 0),
+  transactionId: Number(r.transactionId ?? r.txId ?? 0),
+  reportedBy: String(r.reportedBy ?? r.reporter ?? ''),
+  reason: String(r.reason ?? ''),
+  description: r.description ?? null,
+  status: (VALID_STATUS as readonly string[]).includes(r.status)
+    ? (r.status as ReportItemStatus)
+    : 'PENDING',
+  reviewedBy: r.reviewedBy ?? null,
+  reviewComment: r.reviewComment ?? null,
+  isFraudConfirmed: Boolean(
+    r.isFraudConfirmed ?? r.fraudConfirmed ?? r.confirmed ?? false
+  ),
+  reportedAt: String(r.reportedAt ?? r.createdAt ?? ''),
+  reviewedAt: r.reviewedAt ?? null,
+  transactionDetails: r.transactionDetails ?? {
+    amount: r.amount ?? undefined,
+    merchant: r.merchant ?? undefined,
+    userId: r.userId ?? undefined,
+    transactionTime: r.transactionTime ?? undefined,
+  },
+  priority: r.priority ?? null,
+  severity: r.severity ?? null,
+  category: r.category ?? null,
+  message: r.message ?? null,
+});
+
+function transformRaw(
+  raw: any,
+  fallbackPage: number,
+  fallbackSize: number
+): PaginatedReports {
+  const contentRaw: any[] = Array.isArray(raw)
+    ? raw
+    : Array.isArray(raw?.content)
+      ? raw.content
+      : [];
+
+  const content = contentRaw.map(normalizeItem);
+
+  const totalElements =
+    typeof raw?.totalElements === 'number' ? raw.totalElements : content.length;
+
+  const totalPages =
+    typeof raw?.totalPages === 'number'
+      ? raw.totalPages
+      : Math.ceil(totalElements / Math.max(1, fallbackSize));
+
+  const number = typeof raw?.number === 'number' ? raw.number : fallbackPage;
+
+  const size = typeof raw?.size === 'number' ? raw.size : fallbackSize;
+
+  return { content, totalElements, totalPages, number, size };
+}
 
 export const useGetReport = (args: ReportArgs) => {
   const { status, reportedBy, startDate, endDate, pageable } = args;
@@ -84,18 +89,41 @@ export const useGetReport = (args: ReportArgs) => {
     ...(endDate ? { endDate } : {}),
   });
 
-  useAddPageable(params, pageable, PAGEABLE_MODE);
+  // pageable=nested
+  params.set('pageable.page', String(pageable.page));
+  params.set('pageable.size', String(pageable.size));
+  (pageable.sort ?? []).forEach((s) => params.append('pageable.sort', s));
 
   const qs = params.toString();
 
-  return useApiQuery<ReportPage>({
+  // 1) 원시 응답으로 가져옵니다.
+  const q = useApiQuery<any>({
     queryKey: ['reports', args],
     queryOptions: {
-      endpoint: `/proxy/reports?${qs}`, // 엔드포인트 맥락 그대로
+      endpoint: `/proxy/reports?${qs}`,
       authorization: true,
     },
-    fetchOptions: {
-      enabled: !!pageable,
-    },
   });
+
+  // 2) 메모이즈하여 가공된 데이터를 제공합니다.
+  const parsed: PaginatedReports | undefined = useMemo(() => {
+    if (!q.data) return undefined;
+    try {
+      return transformRaw(q.data, pageable.page, pageable.size);
+    } catch {
+      return {
+        content: [],
+        totalElements: 0,
+        totalPages: 0,
+        number: pageable.page,
+        size: pageable.size,
+      };
+    }
+  }, [q.data, pageable.page, pageable.size]);
+
+  // 3) data만 가공된 타입으로 덮어써서 반환
+  return {
+    ...q,
+    data: parsed,
+  } as Omit<typeof q, 'data'> & { data: PaginatedReports | undefined };
 };

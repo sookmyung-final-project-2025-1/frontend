@@ -1,41 +1,41 @@
 // hooks/queries/report/useGetReportById.ts
 import { useApiQuery } from '../useApi';
 
-/** ---------------- Types ---------------- */
-export type ReportPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | string;
-export type ReportSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | string;
-export type ReportStatus =
-  | 'PENDING'
-  | 'UNDER_REVIEW'
-  | 'APPROVED'
-  | 'REJECTED'
-  | string;
-
 export type ReportDetail = {
   reportId: number;
   transactionId: number;
-  reportedBy: string;
-  reason: string;
-  description: string;
-  status: ReportStatus;
+  reportedBy: string | null;
+  reason: string | null;
+  description: string | null;
+  status: string | null;
   reviewedBy: string | null;
   reviewComment: string | null;
   isFraudConfirmed: boolean;
-  reportedAt: string; // ISO datetime
-  reviewedAt: string | null; // ISO datetime or null
-  transactionDetails: Record<string, unknown>; // 추가 필드 자유형
-  priority: ReportPriority | null;
-  severity: ReportSeverity | null;
-  category: string | null;
-  message: string | null;
+  reportedAt: string | null; // ISO
+  reviewedAt: string | null; // ISO
+  transactionDetails?: {
+    amount?: number | null;
+    merchant?: string | null;
+    userId?: string | null;
+    transactionTime?: string | null;
+  } | null;
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | null;
+  severity?: string | null;
+  category?: string | null;
+  message?: string | null;
 };
 
-/** ---------------- Hook ---------------- */
-export const useGetReportById = (reportId: number) =>
-  useApiQuery<ReportDetail>({
-    queryKey: ['reportDetail', reportId],
+export const useGetReportById = (reportId: number | null) => {
+  const enabled = typeof reportId === 'number' && reportId > 0;
+
+  return useApiQuery<ReportDetail>({
+    queryKey: ['reportDetail', reportId ?? 0],
     queryOptions: {
-      endpoint: `/proxy/reports/${reportId}`,
+      endpoint: enabled ? `/proxy/report/${reportId}` : '', // endpoint는 enabled일 때만 의미 있음
       authorization: true,
     },
+    fetchOptions: {
+      enabled, // 🔴 이게 핵심: 유효 ID일 때만 호출
+    },
   });
+};

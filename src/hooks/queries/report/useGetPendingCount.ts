@@ -1,14 +1,10 @@
-// src/hooks/queries/reports/useGetPendingReportCount.ts
+// hooks/queries/report/useGetPendingCount.ts
+import { PendingCounts } from '@/types/report-types';
 import { useApiQuery } from '../useApi';
 
-/**
- * 대기 중인 신고 수 조회
- * GET /api/reports/pending/count  → 프록시: /proxy/reports/pending/count
- * 반환: number (대기 중 카운트)
- */
-export const useGetPendingReportCount = () =>
-  useApiQuery<number>({
-    queryKey: ['reports', 'pending', 'count'],
+export const useGetPendingCount = () =>
+  useApiQuery<PendingCounts>({
+    queryKey: ['report', 'pendingCount'],
     queryOptions: {
       endpoint: '/proxy/reports/pending/count',
       authorization: true,
