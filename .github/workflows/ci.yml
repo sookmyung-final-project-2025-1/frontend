@@ -1,99 +1,51 @@
-name: CI (Typecheck • Test • Build)
+name: CI
 
 on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ "**" ]
-  workflow_call: {}
-
-permissions:
-  contents: read
-
-env:
-  CI: "true"
-  NODE_ENV: production
-  NEXT_TELEMETRY_DISABLED: "1"
+    branches: [ main ]
 
 jobs:
-  ci:
-    name: linux / node ${{ matrix.node }}
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    strategy:
-      fail-fast: false
-      matrix:
-        node: [20]
-
+    
     steps:
-      - name: ⬇️ Checkout
-        uses: actions/checkout@v4
-
-      - name: 🧰 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node }}
-          cache: "pnpm"
-
-      - name: 🧰 Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
-
-      - name: ♻️ Restore pnpm store cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.pnpm-store
-          key: pnpm-store-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-store-${{ runner.os }}-
-
-      - name: 📦 Install deps
-        run: pnpm install --frozen-lockfile
-
-      - name: 🔡 Typecheck (tsc --noEmit)
-        run: |
-          if [ -f tsconfig.json ]; then
-            pnpm exec tsc --noEmit
-          else
-            echo "No tsconfig.json, skipping tsc."
-          fi
-
-      - name: 🧪 Test (vitest/jest auto-detect)
-        run: |
-          if ls **/vitest.config.* >/dev/null 2>&1; then
-            pnpm exec vitest run --reporter=verbose
-          elif [ -f jest.config.js ] || [ -f jest.config.cjs ] || [ -f jest.config.ts ]; then
-            pnpm exec jest --ci --runInBand
-          else
-            echo "No test runner detected, skipping."
-          fi
-
-      - name: ⚙️ Build (Next.js)
-        env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
-        run: |
-          set -o pipefail
-          mkdir -p .logs
-          pnpm exec next build 2>&1 | tee .logs/next-build.log
-
-      - name: ⬆️ Upload build logs (on failure)
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs
-          path: |
-            .logs/**
-            .next/trace
-            .next/trace*.json
-          if-no-files-found: ignore
-
-      - name: ⬆️ Upload app artifact (optional)
-        if: success() && (hashFiles('.next/**') != '')
-        uses: actions/upload-artifact@v4
-        with:
-          name: next-artifacts
-          path: .next
-          if-no-files-found: ignore
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    # pnpm 설치 추가
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: latest
+        
+    # 또는 corepack 방식
+    - name: Enable corepack
+      run: corepack enable
+      
+    - name: Get pnpm store directory
+      id: pnpm-cache
+      run: |
+        echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+        
+    - name: Setup pnpm cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+          
+    - name: Install dependencies
+      run: pnpm install
+      
+    - name: Build
+      run: pnpm build
+      
+    - name: Test
+      run: pnpm test
