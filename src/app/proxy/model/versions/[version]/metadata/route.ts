@@ -78,13 +78,14 @@ function filterResHeaders(src: Headers) {
   return h;
 }
 
-// 🔥 정상 작동하는 다른 라우터와 동일한 패턴 사용
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { version: string } }
-) {
+// 🔥 Next.js 15 호환 타입 정의
+interface RouteContext {
+  params: Promise<{ version: string }>;
+}
+
+// ✅ GET /proxy/model/versions/[version]/metadata
+export async function GET(req: NextRequest, context: RouteContext) {
   console.log('🎯 Metadata GET handler called');
-  console.log('📍 Version from params:', params.version);
 
   if (!API) {
     console.error('❌ API_BASE_URL missing');
@@ -94,13 +95,21 @@ export async function GET(
     );
   }
 
-  // 🔥 다른 라우터와 동일한 URL 구성 방식
-  const upstreamUrl = `${API}/model/versions/${params.version}/metadata`;
-
   try {
+    // params는 Promise이므로 await 필요
+    const { version } = await context.params;
+    console.log('📍 Version parameter:', version);
+
+    if (!version) {
+      return NextResponse.json(
+        { message: 'version parameter missing' },
+        { status: 400 }
+      );
+    }
+
+    const upstreamUrl = `${API}/model/versions/${encodeURIComponent(version)}/metadata${req.nextUrl.search || ''}`;
     console.log('📤 Request to:', upstreamUrl);
 
-    // 🔥 다른 라우터와 동일한 fetch 옵션
     const fetchOptions: RequestInit & { agent?: any } = {
       method: 'GET',
       headers: buildUpstreamHeaders(req),
@@ -135,15 +144,15 @@ export async function GET(
     console.error('❌ Metadata proxy error:', {
       message: e?.message,
       code: e?.code,
-      url: upstreamUrl,
+      stack: e?.stack?.split('\n').slice(0, 3),
     });
 
     return NextResponse.json(
       {
         message: 'Upstream fetch failed',
-        url: upstreamUrl,
         error: e?.message ?? String(e),
         code: e?.code ?? null,
+        timestamp: new Date().toISOString(),
       },
       { status: 502 }
     );

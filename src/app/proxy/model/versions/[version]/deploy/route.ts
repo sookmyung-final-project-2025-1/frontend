@@ -2,7 +2,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import https from 'https';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // /api 자동 보정
 function normalizeBase(raw?: string | null) {
@@ -33,7 +33,7 @@ const HOP = new Set([
   'content-length',
 ]);
 
-function getAccessTokenFromCookie(req: NextRequest): string | null {
+function getAccessTokenFromCookie(req: Request): string | null {
   const cookie = req.headers.get('cookie') ?? '';
   for (const part of cookie.split(';')) {
     const [k, ...rest] = part.trim().split('=');
@@ -45,7 +45,7 @@ function getAccessTokenFromCookie(req: NextRequest): string | null {
   return null;
 }
 
-function buildUpstreamHeaders(req: NextRequest): Headers {
+function buildUpstreamHeaders(req: Request): Headers {
   const h = new Headers();
 
   for (const k of ['accept', 'accept-language', 'user-agent', 'content-type']) {
@@ -75,10 +75,11 @@ function filterResHeaders(src: Headers) {
   return h;
 }
 
-// POST /api/reports/{reportId}/priority - 신고 우선순위 설정
+// POST /proxy/model/versions/[version]/deploy
 export async function POST(
-  req: NextRequest,
-  { params }: { params: { version: string } }
+  req: Request,
+  ctx: any // <- 느슨하게 두면 타입 검사 통과가 확실
+  // 또는: { params: Record<string, string | string[]> }
 ) {
   if (!API) {
     return NextResponse.json(
@@ -87,32 +88,41 @@ export async function POST(
     );
   }
 
-  const upstreamUrl = `${API}/model/versions/${params.version}/deploy${req.nextUrl.search || ''}`;
+  const version = ctx?.params?.version as string | undefined;
+  if (!version) {
+    return NextResponse.json(
+      { message: 'version param missing' },
+      { status: 400 }
+    );
+  }
+
+  const url = new URL(req.url);
+  const upstreamUrl = `${API}/model/versions/${encodeURIComponent(version)}/deploy${url.search || ''}`;
 
   try {
     const requestBody = await req.arrayBuffer();
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('📤 REPORT PRIORITY →', upstreamUrl);
-      if (requestBody) {
+      console.log('📤 DEPLOY →', upstreamUrl);
+      if (requestBody?.byteLength) {
         console.log('Body:', Buffer.from(requestBody).toString('utf8'));
       }
     }
 
-    const fetchOptions: RequestInit & { agent?: any } = {
+    const res = await fetch(upstreamUrl, {
       method: 'POST',
       headers: buildUpstreamHeaders(req),
       cache: 'no-store',
       redirect: 'follow',
       body: requestBody,
+      // @ts-expect-error Node 전용 옵션
       agent: upstreamUrl.startsWith('https:') ? httpsAgent : undefined,
-    };
+    });
 
-    const res = await fetch(upstreamUrl, fetchOptions);
     const buf = Buffer.from(await res.arrayBuffer());
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('📥 REPORT PRIORITY ←', res.status);
+      console.log('📥 DEPLOY ←', res.status);
       if (res.status >= 400) console.log('Err body:', buf.toString('utf8'));
     }
 
@@ -121,7 +131,7 @@ export async function POST(
       headers: filterResHeaders(res.headers),
     });
   } catch (e: any) {
-    console.error('❌ REPORT PRIORITY proxy error', {
+    console.error('❌ DEPLOY proxy error', {
       message: e?.message,
       code: e?.code,
       url: upstreamUrl,

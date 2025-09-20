@@ -75,11 +75,13 @@ function filterResHeaders(src: Headers) {
   return h;
 }
 
+// Next.js 15 호환 타입 정의
+interface RouteContext {
+  params: Promise<{ reportId: string }>;
+}
+
 // POST /api/reports/{reportId}/priority - 신고 우선순위 설정
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { reportId: string } }
-) {
+export async function POST(req: NextRequest, context: RouteContext) {
   if (!API) {
     return NextResponse.json(
       { message: 'API_BASE_URL missing' },
@@ -87,9 +89,12 @@ export async function POST(
     );
   }
 
-  const upstreamUrl = `${API}/reports/${params.reportId}/priority${req.nextUrl.search || ''}`;
-
   try {
+    // params는 Promise이므로 await 필요
+    const { reportId } = await context.params;
+
+    const upstreamUrl = `${API}/reports/${reportId}/priority${req.nextUrl.search || ''}`;
+
     const requestBody = await req.arrayBuffer();
 
     if (process.env.NODE_ENV === 'development') {
@@ -124,12 +129,10 @@ export async function POST(
     console.error('❌ REPORT PRIORITY proxy error', {
       message: e?.message,
       code: e?.code,
-      url: upstreamUrl,
     });
     return NextResponse.json(
       {
         message: 'Upstream fetch failed',
-        url: upstreamUrl,
         error: e?.message ?? String(e),
       },
       { status: 502 }

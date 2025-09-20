@@ -75,11 +75,13 @@ function filterResHeaders(src: Headers) {
   return h;
 }
 
-// GET /api/reports/{reportId} - 신고 상세 조회
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { transactionId: string } }
-) {
+// Next.js 15 호환 타입 정의
+interface RouteContext {
+  params: Promise<{ transactionId: string }>;
+}
+
+// POST /api/reports/{reportId}/priority - 신고 우선순위 설정
+export async function GET(req: NextRequest, context: RouteContext) {
   if (!API) {
     return NextResponse.json(
       { message: 'API_BASE_URL missing' },
@@ -87,11 +89,19 @@ export async function GET(
     );
   }
 
-  const upstreamUrl = `${API}/reports/${params.transactionId}${req.nextUrl.search || ''}`;
-
   try {
+    // params는 Promise이므로 await 필요
+    const { transactionId } = await context.params;
+
+    const upstreamUrl = `${API}/reports/transaction/${transactionId}`;
+
+    const requestBody = await req.arrayBuffer();
+
     if (process.env.NODE_ENV === 'development') {
-      console.log('📤 REPORT DETAIL →', upstreamUrl);
+      console.log('📤 REPORT PRIORITY →', upstreamUrl);
+      if (requestBody) {
+        console.log('Body:', Buffer.from(requestBody).toString('utf8'));
+      }
     }
 
     const fetchOptions: RequestInit & { agent?: any } = {
@@ -99,6 +109,7 @@ export async function GET(
       headers: buildUpstreamHeaders(req),
       cache: 'no-store',
       redirect: 'follow',
+      body: requestBody,
       agent: upstreamUrl.startsWith('https:') ? httpsAgent : undefined,
     };
 
@@ -106,7 +117,7 @@ export async function GET(
     const buf = Buffer.from(await res.arrayBuffer());
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('📥 REPORT DETAIL ←', res.status);
+      console.log('📥 REPORT PRIORITY ←', res.status);
       if (res.status >= 400) console.log('Err body:', buf.toString('utf8'));
     }
 
@@ -115,15 +126,13 @@ export async function GET(
       headers: filterResHeaders(res.headers),
     });
   } catch (e: any) {
-    console.error('❌ REPORT DETAIL proxy error', {
+    console.error('❌ REPORT PRIORITY proxy error', {
       message: e?.message,
       code: e?.code,
-      url: upstreamUrl,
     });
     return NextResponse.json(
       {
         message: 'Upstream fetch failed',
-        url: upstreamUrl,
         error: e?.message ?? String(e),
       },
       { status: 502 }
