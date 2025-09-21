@@ -70,7 +70,21 @@ module.exports = {
         },
       },
       fontFamily: {
-        pretendard: ['var(--font-pretendard)'],
+        // "font-sans"를 Pretendard로
+        sans: [
+          '"Pretendard Variable"',
+          'Pretendard',
+          '-apple-system',
+          'system-ui',
+          'Segoe UI',
+          'Roboto',
+          'Helvetica Neue',
+          'Arial',
+          'Noto Sans',
+          'Apple SD Gothic Neo',
+          'Malgun Gothic',
+          'sans-serif',
+        ],
       },
       fontSize: {
         headline1: [

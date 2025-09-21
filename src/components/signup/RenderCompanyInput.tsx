@@ -19,7 +19,7 @@ type InputFieldProps = {
 };
 
 const commonStyle = 'w-full flex justify-between';
-const commonTextStyle = 'text-gray-90 font-semibold';
+const commonTextStyle = 'w-fit text-gray-90 font-semibold';
 const commonSelectStyle = 'h-[50px] text-[15px]';
 
 export const RenderCompanyInput = ({
@@ -100,7 +100,12 @@ export const RenderCompanyInput = ({
     return (
       <div className={commonStyle}>
         <span className={commonTextStyle}>{title}</span>
-        <Input<SignupType> name={name} control={control} type='text' />
+        <Input<SignupType>
+          name={name}
+          control={control}
+          type='text'
+          size='w-[220px]'
+        />
       </div>
     );
   }

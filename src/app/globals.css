@@ -1,3 +1,5 @@
+@import 'pretendard/dist/web/variable/pretendardvariable.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,7 +12,16 @@
 }
 
 body {
-  font-family: pretendard;
+  /* Pretendard 변수폰트 렌더링을 깔끔하게 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Safari가 없는 두께/기울임을 합성해서 두꺼워 보이는 문제 방지 */
+  font-synthesis-weight: none;
+  font-synthesis-style: none;
+
+  /* 가독성 보정 (커닝/리거처) */
+  text-rendering: optimizeLegibility;
 }
 
 @layer base {

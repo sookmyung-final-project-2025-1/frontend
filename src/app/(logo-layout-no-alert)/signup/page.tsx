@@ -230,7 +230,7 @@ export default function SignUp() {
               <div className='flex flex-col gap-[20px] pl-[15px]'>
                 <div className='w-full flex flex-col gap-[20px]'>
                   <div className='flex justify-between'>
-                    <div className='w-[325px]'>
+                    <div className='w-[320px]'>
                       <RenderCompanyInput
                         title='기업명'
                         name='managerName'
