@@ -211,7 +211,7 @@ export function StreamingProvider({ children }: PropsWithChildren) {
     async (iso: string, speedMultiplier = 1) => {
       await startTimemachineM.mutateAsync({
         startTime: iso,
-        speedMultiplier: String(speedMultiplier),
+        speedMultiplier: speedMultiplier,
       });
       setMode('timemachine');
       const res = await statusQ.refetch();

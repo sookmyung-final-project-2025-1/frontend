@@ -17,8 +17,7 @@ export default function ModelDashboard() {
   const [selected, setSelected] = useState<string>('');
   useEffect(() => {
     if (!versionsQ.data) return;
-    // 이거 바꿔야됨 -> currentVersion
-    setSelected((prev) => prev || versionsQ.data.latestVersion);
+    setSelected((prev) => prev || versionsQ.data.currentVersion);
   }, [versionsQ.data]);
 
   // 2) 선택 버전 메타데이터

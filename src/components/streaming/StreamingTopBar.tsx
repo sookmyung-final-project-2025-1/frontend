@@ -1,3 +1,4 @@
+// src/components/streaming/StreamingTopBar.tsx
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -9,7 +10,7 @@ export type StreamMeta = {
   isPaused: boolean;
   isStreaming: boolean;
   mode: 'TIMEMACHINE' | 'REALTIME' | string;
-  progress: number; // 0..1
+  progress?: number; // 0..1  ← 옵셔널
   speedMultiplier: number;
   updatedAt: string; // ISO
 };
@@ -28,7 +29,7 @@ type Props = {
   onTimeRangeChange: (range: TimeRange) => void;
 
   currentPosition: number; // 0..100 %
-  onPositionChange: (position: number) => void; // ✅ 커밋 시 호출
+  onPositionChange: (position: number) => void;
 
   totalDuration: number; // hours
   onRefresh: () => void;
@@ -55,7 +56,6 @@ export default function StreamingTopBar({
   loading,
   streamMeta,
 }: Props) {
-  // 내부 프리뷰 위치(드래그 중엔 이 값으로만 표시)
   const [previewPos, setPreviewPos] = useState<number>(currentPosition);
   const [isDragging, setIsDragging] = useState(false);
   const [seekInput, setSeekInput] = useState('');
@@ -68,7 +68,7 @@ export default function StreamingTopBar({
         ? 'REALTIME'
         : (streamMeta?.mode ?? '');
 
-  // 외부 값 변경 시, 드래그 중이 아니면 동기화
+  // 외부 값 동기화 (드래그 중이면 유지)
   useEffect(() => {
     if (!isDragging) setPreviewPos(currentPosition);
   }, [currentPosition, isDragging]);
@@ -90,7 +90,6 @@ export default function StreamingTopBar({
     '7d': '7일',
     '30d': '30일',
   };
-  const speedOptions = [0.5, 1, 2, 5, 10, 20, 50];
 
   const clientXToPercent = (clientX: number) => {
     if (!progressRef.current) return previewPos;
@@ -103,11 +102,11 @@ export default function StreamingTopBar({
   const handleBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const pct = clientXToPercent(e.clientX);
     setPreviewPos(pct);
-    // 클릭은 즉시 커밋
     onPositionChange(pct);
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault(); // 드래그 시 기본선택 방지
     setIsDragging(true);
     setPreviewPos(clientXToPercent(e.clientX));
   };
@@ -118,7 +117,7 @@ export default function StreamingTopBar({
   const handleMouseUp = () => {
     if (isDragging) {
       setIsDragging(false);
-      onPositionChange(previewPos); // ✅ 드래그 종료 시에만 커밋
+      onPositionChange(previewPos);
     }
   };
 
@@ -147,7 +146,11 @@ export default function StreamingTopBar({
   };
 
   const handleSeekKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') onSeek(seekInput);
+    if (e.key === 'Enter') {
+      e.preventDefault(); // ✅ form submit/네비게이션 방지
+      e.stopPropagation();
+      onSeek(seekInput);
+    }
   };
 
   const updatedBadge = streamMeta?.updatedAt
@@ -194,6 +197,7 @@ export default function StreamingTopBar({
               </button>
             ))}
           </div>
+
           <button
             onClick={onRefresh}
             disabled={loading}
@@ -212,7 +216,7 @@ export default function StreamingTopBar({
             <span className='text-slate-300'>
               {formatTime(previewPos)} / {formatTime(100)}
             </span>
-            <span>현재 ({timeRangeLabels[timeRange]})</span>
+            <span>현재</span>
           </div>
 
           <div
@@ -233,6 +237,7 @@ export default function StreamingTopBar({
         </div>
 
         <div className='flex items-center justify-between'>
+          {/* 좌측: 재생/일시정지 + 배속 */}
           <div className='flex items-center gap-3'>
             <div className='flex gap-1'>
               <button
@@ -272,6 +277,7 @@ export default function StreamingTopBar({
             </div>
           </div>
 
+          {/* 우측: 직접 시점 이동 */}
           <div className='flex items-center gap-2'>
             <span className='text-sm text-slate-400'>시점 이동</span>
             <input

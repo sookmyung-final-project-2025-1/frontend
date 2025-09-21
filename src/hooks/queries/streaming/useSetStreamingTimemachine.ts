@@ -1,15 +1,17 @@
+// src/hooks/queries/streaming/useSetStreamingTimemachine.ts
 import { useApiMutation } from '../useApi';
 
 type StreamingTimemachineArgs = {
-  startTime: string;
-  speedMultiplier: string;
+  startTime: string; // ISO
+  speedMultiplier: number; // ✅ number
 };
 
-export const useSetStreamingTimemachine = () => {
-  return useApiMutation<void, StreamingTimemachineArgs>({
+export const useSetStreamingTimemachine = () =>
+  useApiMutation<void, StreamingTimemachineArgs>({
     method: 'POST',
-    endpoint: (args: StreamingTimemachineArgs) =>
-      `/proxy/streaming/start/timemachine?startTime=${args.startTime}&speedMultiplier=${args.speedMultiplier}`,
+    endpoint: (args) =>
+      `/proxy/streaming/start/timemachine?startTime=${encodeURIComponent(
+        args.startTime
+      )}&speedMultiplier=${args.speedMultiplier}`, // ✅
     authorization: true,
   });
-};
