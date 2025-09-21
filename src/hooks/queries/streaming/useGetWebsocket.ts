@@ -27,7 +27,7 @@ export function useGetWebsocket(options?: {
 
     // ✅ 프론트는 무조건 동일 출처 프록시 경로로 접속 (Next 라우트가 백엔드로 프록시하며 TLS 우회)
     const sock = new SockJS('/proxy/ws', undefined, {
-      transports: ['xhr-streaming', 'xhr-polling', 'websocket'],
+      transports: ['xhr-streaming', 'xhr-polling'],
       timeout: 10000,
     });
 

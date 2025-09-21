@@ -2,22 +2,22 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import https from 'https';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-// 개발 환경에서만 TLS 우회
+// 개발 환경에서만 자체서명 인증서 허용
 if (process.env.NODE_ENV === 'development') {
+  // eslint-disable-next-line no-process-env
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 }
 
-// /api 자동 보정
-function normalizeBase(raw?: string | null) {
-  if (!raw) return '';
-  const b = raw.replace(/\/+$/, '');
-  return b.endsWith('/api') ? b : `${b}/api`;
-}
-const API = normalizeBase(process.env.API_BASE_URL);
+/**
+ * WS_BASE는 반드시 백엔드 루트 (예: https://211.110.155.54)
+ *  - 절대 /api 붙이지 마세요. (SockJS는 /ws 이하 직접 사용)
+ * .env 예:
+ *   API_WS_BASE=https://211.110.155.54
+ */
+const WS_BASE = (process.env.API_WS_BASE || '').replace(/\/+$/, '');
 
-// 자체서명 인증서 허용 (개발용)
 const httpsAgent = new https.Agent({
   rejectUnauthorized: false,
   ...(process.env.API_SNI_HOST ? { servername: process.env.API_SNI_HOST } : {}),
@@ -53,9 +53,15 @@ function pickReqHeaders(src: Headers) {
     if (v) h.set(k, v);
   }
   h.set('accept-encoding', 'identity');
-  if (process.env.API_SNI_HOST) h.set('host', process.env.API_SNI_HOST);
+  if (process.env.API_SNI_HOST) h.set('host', process.env.API_SNI_HOST!);
   h.set('x-requested-with', 'XMLHttpRequest');
   return h;
+}
+
+function headersToObject(h: Headers): Record<string, string> {
+  const o: Record<string, string> = {};
+  h.forEach((v, k) => (o[k] = v));
+  return o;
 }
 
 function filterResHeaders(src: Headers) {
@@ -66,128 +72,96 @@ function filterResHeaders(src: Headers) {
   return h;
 }
 
-async function handler(
-  req: NextRequest,
-  context: { params: Promise<{ sock: string[] }> }
-) {
-  if (!API) {
+async function handle(req: Request, ctx: any) {
+  if (!WS_BASE) {
     return NextResponse.json(
-      { message: 'API_BASE_URL missing' },
+      {
+        message: 'API_WS_BASE missing or empty',
+        received: process.env.API_WS_BASE,
+      },
       { status: 500 }
     );
   }
 
-  try {
-    // Next.js 15: params는 Promise
-    const { sock } = await context.params;
-    const tail = (sock ?? []).join('/');
-    const upstreamUrl = `${API}/ws/${tail}${req.nextUrl.search || ''}`;
+  const sockPath: string[] = ctx?.params?.sock ?? [];
+  const tail = sockPath.join('/');
+  const url = new URL(req.url);
+  const upstreamUrl = `${WS_BASE}/ws/${tail}${url.search || ''}`;
 
-    console.log('WebSocket proxy request:', {
-      method: req.method,
-      url: upstreamUrl,
-      path: tail,
-    });
-
-    // CORS preflight 처리
-    if (req.method === 'OPTIONS') {
-      const origin = req.headers.get('origin') ?? '*';
-      return new NextResponse(null, {
-        status: 204,
-        headers: {
-          'Access-Control-Allow-Origin': origin,
-          'Access-Control-Allow-Methods': 'GET,POST,OPTIONS,HEAD',
-          'Access-Control-Allow-Headers':
-            req.headers.get('access-control-request-headers') ||
-            'content-type,authorization,x-requested-with',
-          'Access-Control-Allow-Credentials': 'true',
-          'Access-Control-Max-Age': '86400',
-        },
-      });
-    }
-
-    // 요청 본문 처리
-    const body =
-      req.method === 'GET' || req.method === 'HEAD'
-        ? undefined
-        : await req.arrayBuffer();
-
-    const fetchOptions: RequestInit & { agent?: any } = {
-      method: req.method,
-      headers: pickReqHeaders(req.headers),
-      body: body?.byteLength ? body : undefined,
-      cache: 'no-store',
-      redirect: 'follow',
-      // @ts-ignore Node 전용 옵션
-      agent: upstreamUrl.startsWith('https:') ? httpsAgent : undefined,
-    };
-
-    const res = await fetch(upstreamUrl, fetchOptions);
-    const buf = Buffer.from(await res.arrayBuffer());
-
-    // 응답 헤더 처리
-    const outHeaders = filterResHeaders(res.headers);
-    const origin = req.headers.get('origin');
-    if (origin) {
-      outHeaders.set('Access-Control-Allow-Origin', origin);
-      outHeaders.set('Access-Control-Allow-Credentials', 'true');
-      outHeaders.set('Vary', 'Origin');
-    }
-
-    console.log('WebSocket proxy response:', {
-      status: res.status,
-      contentType: res.headers.get('content-type'),
-    });
-
-    return new NextResponse(buf, {
-      status: res.status,
-      headers: outHeaders,
-    });
-  } catch (e: any) {
-    console.error('WebSocket proxy error:', {
-      message: e?.message,
-      code: e?.code,
-      cause: e?.cause?.code,
-    });
-
-    return NextResponse.json(
-      {
-        message: 'Upstream fetch failed',
-        error: e?.message ?? String(e),
-        code: e?.code ?? null,
-        causeCode: e?.cause?.code ?? null,
-        timestamp: new Date().toISOString(),
+  // CORS Preflight
+  if (req.method === 'OPTIONS') {
+    const origin = req.headers.get('origin') ?? '*';
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS,HEAD',
+        'Access-Control-Allow-Headers':
+          req.headers.get('access-control-request-headers') ||
+          'content-type,authorization,x-requested-with',
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Max-Age': '86400',
       },
-      { status: 502 }
-    );
+    });
   }
+
+  // GET/HEAD는 body 없음
+  let body: ArrayBuffer | undefined;
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    const ab = await req.arrayBuffer();
+    body = ab.byteLength ? ab : undefined;
+  }
+
+  const requestHeaders = pickReqHeaders(req.headers);
+
+  const res = await fetch(upstreamUrl, {
+    method: req.method,
+    headers: headersToObject(requestHeaders), // Node fetch HeadersInit 호환
+    body,
+    cache: 'no-store',
+    redirect: 'follow',
+    // @ts-ignore - node 전용
+    agent: upstreamUrl.startsWith('https:') ? httpsAgent : undefined,
+  });
+
+  // 응답 헤더 (CORS)
+  const outHeaders = filterResHeaders(res.headers);
+  const origin = req.headers.get('origin');
+  if (origin) {
+    outHeaders.set('Access-Control-Allow-Origin', origin);
+    outHeaders.set('Access-Control-Allow-Credentials', 'true');
+    outHeaders.set('Vary', 'Origin');
+  }
+
+  // 204/HEAD는 body 없이
+  if (res.status === 204 || req.method === 'HEAD') {
+    return new NextResponse(null, { status: res.status, headers: outHeaders });
+  }
+
+  const buf = Buffer.from(await res.arrayBuffer());
+
+  if (res.status >= 400) {
+    console.log('[WS Proxy] Upstream error', {
+      status: res.status,
+      url: upstreamUrl,
+      method: req.method,
+      text: buf.toString('utf8').slice(0, 300),
+    });
+  }
+
+  return new NextResponse(buf, { status: res.status, headers: outHeaders });
 }
 
-// Next.js 15 호환 시그니처
-export async function GET(
-  req: NextRequest,
-  context: { params: Promise<{ sock: string[] }> }
-) {
-  return handler(req, context);
+// ⚠️ 여기가 핵심: 2번째 인자에 **타입 주석을 넣지 마세요**.
+export async function GET(req: Request, ctx: any) {
+  return handle(req, ctx);
 }
-
-export async function POST(
-  req: NextRequest,
-  context: { params: Promise<{ sock: string[] }> }
-) {
-  return handler(req, context);
+export async function POST(req: Request, ctx: any) {
+  return handle(req, ctx);
 }
-
-export async function OPTIONS(
-  req: NextRequest,
-  context: { params: Promise<{ sock: string[] }> }
-) {
-  return handler(req, context);
+export async function OPTIONS(req: Request, ctx: any) {
+  return handle(req, ctx);
 }
-
-export async function HEAD(
-  req: NextRequest,
-  context: { params: Promise<{ sock: string[] }> }
-) {
-  return handler(req, context);
+export async function HEAD(req: Request, ctx: any) {
+  return handle(req, ctx);
 }
