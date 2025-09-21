@@ -121,6 +121,9 @@ export default function StreamingTopBar({
     if (e.key === 'Enter') onSeek(seekInput);
   };
 
+  const isoNow = new Date().toISOString();
+  const isoNowNoMs = isoNow.replace(/\.\d{3}Z$/, 'Z');
+
   return (
     <div className='space-y-4'>
       <div className='flex items-start justify-between'>
@@ -220,7 +223,7 @@ export default function StreamingTopBar({
           <div className='flex items-center gap-2'>
             <span className='text-sm text-slate-400'>시점 이동</span>
             <input
-              placeholder='2017-06-15T14:30:00Z'
+              placeholder={isoNowNoMs}
               value={seekInput}
               onChange={(e) => setSeekInput(e.target.value)}
               onKeyDown={handleEnter}

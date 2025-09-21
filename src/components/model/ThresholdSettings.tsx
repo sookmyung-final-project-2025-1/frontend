@@ -114,7 +114,7 @@ export default function ThresholdSettings({
               {threshold.toFixed(2)}
             </div>
           </div>
-          <div className='mt-2'>
+          <div className='mt-2 w-full flex justify-end'>
             <button
               type='submit'
               disabled={mutation.isPending || isLoading}

@@ -7,7 +7,7 @@ export const useFraudTransaction = (transactionId: string) => {
   return useApiQuery<TransactionType>({
     queryKey: ['transaction', 'detail', transactionId],
     queryOptions: {
-      endpoint: `/proxy/transactions/${transactionDetailParameter}/transaction`,
+      endpoint: `/proxy/transactions/${transactionDetailParameter}/fraud-detection`,
       authorization: true,
     },
   });
