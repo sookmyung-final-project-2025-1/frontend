@@ -40,7 +40,7 @@ export default function DashboardTabs() {
               role='tab'
               aria-selected={active}
               className={cn(
-                'shrink-0 rounded-lg px-4 py-2 text-sm transition',
+                'shrink-0 rounded-lg px-4 py-2 text-m transition',
                 active
                   ? 'bg-slate-800 text-slate-100'
                   : 'text-slate-300 hover:bg-slate-800/60'
