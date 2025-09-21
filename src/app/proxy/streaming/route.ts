@@ -1,8 +1,8 @@
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-
 import https from 'https';
 import { NextRequest, NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 function normalizeBase(raw?: string | null) {
   if (!raw) return '';
@@ -32,7 +32,6 @@ const HOP = new Set([
 
 function pickReqHeaders(src: Headers) {
   const h = new Headers();
-  // 1) 기본 헤더
   for (const k of [
     'accept',
     'accept-language',
@@ -40,7 +39,7 @@ function pickReqHeaders(src: Headers) {
     'authorization',
     'cookie',
     'content-type',
-    // 2) 추가로 꼭 넘겨야 하는 것들
+    // 403 방지용: Origin/Referer 전달
     'origin',
     'referer',
   ]) {
@@ -48,13 +47,8 @@ function pickReqHeaders(src: Headers) {
     if (v) h.set(k, v);
   }
   h.set('accept-encoding', 'identity');
-
-  // 백엔드가 SNI/Host를 본다면 유지
   if (process.env.API_SNI_HOST) h.set('host', process.env.API_SNI_HOST!);
-
-  // 일부 서버가 AJAX 요청 식별에 쓰는 헤더(선택)
   h.set('x-requested-with', 'XMLHttpRequest');
-
   return h;
 }
 
@@ -66,43 +60,41 @@ function filterResHeaders(src: Headers) {
   return h;
 }
 
-async function handle(
-  req: NextRequest,
-  { params }: { params: { path?: string[] } }
-) {
-  if (!API)
+export async function GET(req: NextRequest) {
+  if (!API) {
     return NextResponse.json(
       { message: 'API_BASE_URL missing' },
       { status: 500 }
     );
+  }
 
-  const tail = (params.path ?? []).join('/');
-  const search = req.nextUrl.search || '';
-  const upstreamUrl = `${API}/streaming/${tail}${search}`;
+  const upstreamUrl = `${API}/streaming/status`;
 
-  const res = await fetch(upstreamUrl, {
-    method: req.method,
-    headers: pickReqHeaders(req.headers),
-    body:
-      req.method === 'GET' || req.method === 'HEAD'
-        ? undefined
-        : await req.arrayBuffer(),
-    cache: 'no-store',
-    redirect: 'follow',
-    // @ts-ignore
-    agent: upstreamUrl.startsWith('https:') ? httpsAgent : undefined,
-  });
+  try {
+    const res = await fetch(upstreamUrl, {
+      method: 'GET',
+      headers: pickReqHeaders(req.headers),
+      cache: 'no-store',
+      redirect: 'follow',
+      // @ts-expect-error node 전용 옵션
+      agent: upstreamUrl.startsWith('https:') ? httpsAgent : undefined,
+    });
 
-  const buf = Buffer.from(await res.arrayBuffer());
-  return new NextResponse(buf, {
-    status: res.status,
-    headers: filterResHeaders(res.headers),
-  });
+    const buf = Buffer.from(await res.arrayBuffer());
+    return new NextResponse(buf, {
+      status: res.status,
+      headers: filterResHeaders(res.headers),
+    });
+  } catch (e: any) {
+    return NextResponse.json(
+      {
+        message: 'Upstream fetch failed',
+        url: upstreamUrl,
+        error: e?.message ?? String(e),
+        code: e?.code ?? null,
+        causeCode: e?.cause?.code ?? null,
+      },
+      { status: 502 }
+    );
+  }
 }
-
-export const GET = handle;
-export const POST = handle;
-export const PUT = handle;
-export const PATCH = handle;
-export const DELETE = handle;
-export const HEAD = handle;
