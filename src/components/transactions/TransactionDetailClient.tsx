@@ -2,6 +2,7 @@
 'use client';
 
 import TransactionDetailView from '@/components/transactions/detail/TransactionDetailView';
+import { useFraudTransaction } from '@/hooks/queries/transaction/useFraudTransaction';
 import { useTransactionDetail } from '@/hooks/queries/transaction/useTransactionDetail';
 
 export default function TransactionDetailClient({
@@ -10,6 +11,8 @@ export default function TransactionDetailClient({
   transactionId: string;
 }) {
   const { data, isLoading, error } = useTransactionDetail(transactionId);
+  const { data: fdata } = useFraudTransaction(transactionId);
+  console.log(fdata);
 
   const formatAmount = (amount?: number) =>
     typeof amount === 'number'
