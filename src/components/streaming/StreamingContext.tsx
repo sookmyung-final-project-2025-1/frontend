@@ -160,7 +160,7 @@ export function StreamingProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const s = await api('GET', `${API}/api/streaming/status`);
+      const s = await api('GET', `${API}/streaming/status`);
       setStatus({
         isStreaming: !!s.isStreaming,
         isPaused: !!s.isPaused,
@@ -178,7 +178,7 @@ export function StreamingProvider({ children }: { children: React.ReactNode }) {
   const startRealtime = useCallback(async () => {
     setLoading(true);
     try {
-      await api('POST', `${API}/api/streaming/start/realtime`);
+      await api('POST', `${API}/streaming/start/realtime`);
       await refresh();
     } finally {
       setLoading(false);
@@ -188,7 +188,7 @@ export function StreamingProvider({ children }: { children: React.ReactNode }) {
   const startTimemachine = useCallback(
     async (startIso: string, speed?: number) => {
       const u = new URL(
-        `${API}/api/streaming/start/timemachine`,
+        `${API}/streaming/start/timemachine`,
         window.location.origin
       );
       u.searchParams.set('startTime', startIso);
@@ -205,22 +205,22 @@ export function StreamingProvider({ children }: { children: React.ReactNode }) {
   );
 
   const pause = useCallback(async () => {
-    await api('POST', `${API}/api/streaming/pause`);
+    await api('POST', `${API}/streaming/pause`);
     await refresh();
   }, [refresh]);
   const resume = useCallback(async () => {
-    await api('POST', `${API}/api/streaming/resume`);
+    await api('POST', `${API}/streaming/resume`);
     await refresh();
   }, [refresh]);
   const stop = useCallback(async () => {
-    await api('POST', `${API}/api/streaming/stop`);
+    await api('POST', `${API}/streaming/stop`);
     setData([]);
     await refresh();
   }, [refresh]);
 
   const changeSpeed = useCallback(
     async (multiplier: number) => {
-      const u = new URL(`${API}/api/streaming/speed`, window.location.origin);
+      const u = new URL(`${API}/streaming/speed`, window.location.origin);
       u.searchParams.set('speedMultiplier', String(multiplier));
       await api('PUT', u.pathname + u.search);
       await refresh();
@@ -230,7 +230,7 @@ export function StreamingProvider({ children }: { children: React.ReactNode }) {
 
   const jump = useCallback(
     async (targetIso: string) => {
-      const u = new URL(`${API}/api/streaming/jump`, window.location.origin);
+      const u = new URL(`${API}/streaming/jump`, window.location.origin);
       u.searchParams.set('targetTime', targetIso);
       await api('POST', u.pathname + u.search);
       await refresh();
