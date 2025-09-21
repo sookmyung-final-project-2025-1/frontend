@@ -34,7 +34,7 @@ export type DetectionResult = {
 
 type Ctx = {
   status: StreamingStatus;
-  data: DetectionResult[]; // 차트 데이터(WS push)
+  data: DetectionResult[];
   startRealtime: () => Promise<void>;
   startTimemachine: (startIso: string, speed?: number) => Promise<void>;
   pause: () => Promise<void>;
@@ -42,7 +42,7 @@ type Ctx = {
   stop: () => Promise<void>;
   changeSpeed: (multiplier: number) => Promise<void>;
   jump: (targetIso: string) => Promise<void>;
-  refresh: () => Promise<void>; // GET /status
+  refresh: () => Promise<void>;
   loading: boolean;
 };
 
@@ -53,6 +53,8 @@ const API = '/proxy'; // 프런트 프록시 경유
 async function api(method: 'GET' | 'POST' | 'PUT', url: string) {
   const res = await fetch(url, { method, credentials: 'include' });
   if (!res.ok) {
+    // 이미 실행중일 때 등은 조용히 무시하고 상태만 동기화하고 싶다면 여기에서 허용
+    // if (res.status === 409 || res.status === 400) return {};
     const text = await res.text().catch(() => '');
     throw new Error(`${method} ${url} -> ${res.status} ${text}`);
   }
@@ -70,30 +72,39 @@ export function StreamingProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<DetectionResult[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // --- WebSocket / STOMP ---
+  // ---- WS 싱글톤 가드 ----
   const stompRef = useRef<Client | null>(null);
   const subTxRef = useRef<StompSubscription | null>(null);
   const subStatusRef = useRef<StompSubscription | null>(null);
+  const wsStartedRef = useRef(false); // ✅ dev 중복연결 방지
+
+  // ---- refresh 중복 방지 락 ----
+  const refreshingRef = useRef(false);
+  const firstRefreshDoneRef = useRef(false);
 
   const connectWS = useCallback(() => {
-    if (stompRef.current?.connected) return;
+    if (wsStartedRef.current) return; // ✅ 이미 시작했으면 무시
+    wsStartedRef.current = true;
 
-    // 백엔드 SockJS 엔드포인트 경로에 맞춰 수정 (예: /ws, /stomp, /socket)
-    const sock = new SockJS('/proxy/ws'); // ← 서버의 SockJS 엔드포인트 프록시 경로
+    const sock = new SockJS('/proxy/ws');
     const client = new Client({
       webSocketFactory: () => sock as any,
       reconnectDelay: 3000,
+      debug: (msg) => {
+        if (process.env.NODE_ENV === 'development') {
+          // console.log('[STOMP]', msg);
+        }
+      },
       onConnect: () => {
         subTxRef.current = client.subscribe(
           '/topic/realtime-transactions',
           (msg: IMessage) => {
             try {
               const body = JSON.parse(msg.body);
-              // body.transactions 배열만 뽑아 차트 데이터로 적재
               const items: DetectionResult[] = (body.transactions ?? []).map(
                 (t: any) => ({
                   timestamp: t.time || body.timestamp,
-                  score: t.score ?? t.amount ?? 0, // 서버 포맷에 맞추세요(예시로 score 혹은 amount)
+                  score: t.score ?? t.amount ?? 0,
                   prediction: t.isFraud ? 'fraud' : 'normal',
                   confidence:
                     typeof t.confidence === 'number' ? t.confidence : 0.8,
@@ -105,13 +116,11 @@ export function StreamingProvider({ children }: { children: React.ReactNode }) {
                 })
               );
               if (items.length) {
-                setData((prev) => {
-                  const merged = [...prev, ...items];
-                  // 메모리 보호: 최근 N개만 유지 (예: 5000)
-                  return merged.slice(-5000);
-                });
+                setData((prev) => [...prev, ...items].slice(-5000));
               }
-            } catch {}
+            } catch {
+              /* noop */
+            }
           }
         );
 
@@ -120,7 +129,8 @@ export function StreamingProvider({ children }: { children: React.ReactNode }) {
           (msg: IMessage) => {
             try {
               const s = JSON.parse(msg.body);
-              setStatus({
+              setStatus((prev) => ({
+                ...prev,
                 isStreaming: !!s.isStreaming,
                 isPaused: !!s.isPaused,
                 mode: s.mode || '',
@@ -129,21 +139,23 @@ export function StreamingProvider({ children }: { children: React.ReactNode }) {
                 progress:
                   typeof s.progress === 'number' ? s.progress : undefined,
                 updatedAt: s.updatedAt,
-              });
-            } catch {}
+              }));
+            } catch {
+              /* noop */
+            }
           }
         );
       },
-      onStompError: () => {},
       onWebSocketClose: () => {},
+      onStompError: () => {},
     });
+
     client.activate();
     stompRef.current = client;
   }, []);
 
   useEffect(() => {
     connectWS();
-    // 언마운트 시 정리
     return () => {
       try {
         subTxRef.current?.unsubscribe();
@@ -151,17 +163,23 @@ export function StreamingProvider({ children }: { children: React.ReactNode }) {
       try {
         subStatusRef.current?.unsubscribe();
       } catch {}
-      stompRef.current?.deactivate();
+      try {
+        stompRef.current?.deactivate();
+      } catch {}
       stompRef.current = null;
+      wsStartedRef.current = false; // 정리 시 초기화
     };
   }, [connectWS]);
 
-  // --- REST 제어 ---
+  // ---- REST 제어 ----
   const refresh = useCallback(async () => {
+    if (refreshingRef.current) return; // ✅ 동시중복 방지
+    refreshingRef.current = true;
     setLoading(true);
     try {
       const s = await api('GET', `${API}/streaming/status`);
-      setStatus({
+      setStatus((prev) => ({
+        ...prev,
         isStreaming: !!s.isStreaming,
         isPaused: !!s.isPaused,
         mode: s.mode || '',
@@ -169,13 +187,22 @@ export function StreamingProvider({ children }: { children: React.ReactNode }) {
         currentVirtualTime: s.currentVirtualTime || '',
         progress: typeof s.progress === 'number' ? s.progress : undefined,
         updatedAt: s.updatedAt,
-      });
+      }));
     } finally {
+      refreshingRef.current = false;
       setLoading(false);
     }
   }, []);
 
+  // 초기 동기화도 딱 1번
+  useEffect(() => {
+    if (firstRefreshDoneRef.current) return;
+    firstRefreshDoneRef.current = true; // ✅ 한 번만
+    refresh().catch(() => {});
+  }, [refresh]);
+
   const startRealtime = useCallback(async () => {
+    if (loading) return;
     setLoading(true);
     try {
       await api('POST', `${API}/streaming/start/realtime`);
@@ -183,35 +210,38 @@ export function StreamingProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [refresh]);
+  }, [refresh, loading]);
 
   const startTimemachine = useCallback(
     async (startIso: string, speed?: number) => {
-      const u = new URL(
-        `${API}/streaming/start/timemachine`,
-        window.location.origin
-      );
-      u.searchParams.set('startTime', startIso);
-      if (speed != null) u.searchParams.set('speedMultiplier', String(speed));
+      if (loading) return;
       setLoading(true);
       try {
+        const u = new URL(
+          `${API}/streaming/start/timemachine`,
+          window.location.origin
+        );
+        u.searchParams.set('startTime', startIso);
+        if (speed != null) u.searchParams.set('speedMultiplier', String(speed));
         await api('POST', u.pathname + u.search);
         await refresh();
       } finally {
         setLoading(false);
       }
     },
-    [refresh]
+    [refresh, loading]
   );
 
   const pause = useCallback(async () => {
     await api('POST', `${API}/streaming/pause`);
     await refresh();
   }, [refresh]);
+
   const resume = useCallback(async () => {
     await api('POST', `${API}/streaming/resume`);
     await refresh();
   }, [refresh]);
+
   const stop = useCallback(async () => {
     await api('POST', `${API}/streaming/stop`);
     setData([]);
@@ -237,11 +267,6 @@ export function StreamingProvider({ children }: { children: React.ReactNode }) {
     },
     [refresh]
   );
-
-  // 초기 상태 동기화
-  useEffect(() => {
-    refresh().catch(() => {});
-  }, [refresh]);
 
   const value = useMemo<Ctx>(
     () => ({

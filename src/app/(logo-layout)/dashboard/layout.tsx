@@ -3,7 +3,6 @@
 import DashboardTabs from '@/components/ui/DashboardTabs';
 import AppProviders from '@/contexts/AppProviders';
 import { Link } from 'lucide-react';
-import Image from 'next/image';
 import { ReactNode, useEffect, useState } from 'react';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -34,12 +33,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               href='/dashboard'
               className='w-fit h-full flex justify-between items-center'
             >
-              <Image
+              결제지킴이
+              {/* <Image
                 src='/assets/images/logo.svg'
                 alt='로고 이미지'
                 width={180}
                 height={48}
-              />
+              /> */}
             </Link>
           </header>
           {/* 상단 공용 탭 */}
