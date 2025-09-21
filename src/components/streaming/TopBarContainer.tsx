@@ -9,7 +9,7 @@ import StreamingTopBar from '@/components/streaming/StreamingTopBar';
 
 import { useChangeSpeed } from '@/hooks/queries/streaming/useChangeSpeed';
 import { useGetStreamingStatus } from '@/hooks/queries/streaming/useGetStreamingStatus';
-import { useGetWebsocket } from '@/hooks/queries/streaming/useGetWebsocket';
+import { useGetWebsocket } from '@/hooks/queries/streaming/useGetWebsocket'; // ✅ 올바른 훅
 import { useJumpStreaming } from '@/hooks/queries/streaming/useJumpStreaming';
 import { usePauseStreaming } from '@/hooks/queries/streaming/usePauseStreaming';
 import { useResumeStreaming } from '@/hooks/queries/streaming/useResumeStreaming';
@@ -39,15 +39,15 @@ export default function TopBarContainer() {
   const changeSpeed = useChangeSpeed();
   const jump = useJumpStreaming();
 
-  // WS 구독 데이터 (서버가 push하는 거래들)
-  const { transactions } = useGetWebsocket(); // [{ id, amount, merchant, time, isFraud, ...}]
+  // ✅ WS 구독 데이터 (서버가 push하는 거래들)
+  const { transactions, connectionStatus } = useGetWebsocket();
 
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
 
   // 진행률 계산: 서버 progress 우선, 없으면 virtualTime으로 추정
   const currentPosition = useMemo(() => {
-    if (typeof status?.progress === 'number') {
-      return Math.max(0, Math.min(100, status.progress * 100));
+    if (typeof (status as any)?.progress === 'number') {
+      return Math.max(0, Math.min(100, (status as any).progress * 100));
     }
     const span = RANGE_MS[timeRange];
     const end = Date.now();
@@ -60,7 +60,7 @@ export default function TopBarContainer() {
     }
     return 100;
   }, [
-    status?.progress,
+    (status as any)?.progress,
     (status as any)?.currentVirtualTime,
     (status as any)?.currentTime,
     timeRange,
@@ -72,7 +72,7 @@ export default function TopBarContainer() {
   const virtualTime =
     (status as any)?.currentVirtualTime ?? (status as any)?.currentTime ?? '';
 
-  // 버튼 핸들러
+  // 액션 핸들러
   const onPlay = async () => {
     await startRealtime.mutateAsync();
     await refetch();
@@ -157,12 +157,15 @@ export default function TopBarContainer() {
     jump.isPending ||
     stop.isPending;
 
+  // ✅ WS 연결 상태를 온라인 표시에 사용
+  const online = connectionStatus === 'connected';
+
   return (
     <div className='space-y-6'>
       <StreamingTopBar
         playing={playing}
         speed={speed}
-        online={true}
+        online={online}
         onPlay={onPlay}
         onPause={onPause}
         onSpeedChange={onSpeedChange}
@@ -178,7 +181,6 @@ export default function TopBarContainer() {
         streamMeta={meta}
       />
 
-      {/* 차트 하나만 */}
       <StreamingDetectionChart
         data={normalizedData}
         playing={playing}

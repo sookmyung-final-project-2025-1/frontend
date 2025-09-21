@@ -197,14 +197,6 @@ export default function StreamingTopBar({
               </button>
             ))}
           </div>
-
-          <button
-            onClick={onRefresh}
-            disabled={loading}
-            className='px-3 py-1 text-sm bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50'
-          >
-            {loading ? '새로고침 중...' : '새로고침'}
-          </button>
         </div>
       </div>
 

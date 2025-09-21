@@ -10,7 +10,7 @@ function normalizeBase(raw?: string | null) {
   const b = raw.replace(/\/+$/, '');
   return b.endsWith('/api') ? b : `${b}/api`;
 }
-const API = normalizeBase(process.env.API_BASE_URL);
+const API = normalizeBase(process.env.API_PROXY_TARGET);
 
 // 개발 환경에서 API URL 확인
 if (process.env.NODE_ENV === 'development') {
