@@ -5,12 +5,17 @@ export const dynamic = 'force-dynamic';
 import https from 'https';
 import { NextRequest, NextResponse } from 'next/server';
 
-// dev에서만 TLS 우회
+// 개발 환경에서만 자체서명 인증서 허용
 if (process.env.NODE_ENV === 'development') {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 }
 
-// ✅ /api 붙이지 말고, 순수 ORIGIN만!
+/**
+ * WS_BASE는 반드시 백엔드의 루트(예: https://211.110.155.54)
+ *  - 절대 /api 를 붙이지 마세요! (SockJS는 /ws 아래 경로를 직접 사용)
+ * .env 예:
+ *   API_WS_BASE=https://211.110.155.54
+ */
 const WS_BASE = (process.env.API_WS_BASE || '').replace(/\/+$/, '');
 
 const httpsAgent = new https.Agent({
@@ -32,13 +37,14 @@ const HOP = new Set([
   'content-length',
 ]);
 
-// ✅ SockJS /info는 민감헤더(authorization/cookie) 넘기지 마세요
 function pickReqHeaders(src: Headers) {
   const h = new Headers();
   for (const k of [
     'accept',
     'accept-language',
     'user-agent',
+    'authorization',
+    'cookie',
     'content-type',
     'origin',
     'referer',
@@ -47,10 +53,15 @@ function pickReqHeaders(src: Headers) {
     if (v) h.set(k, v);
   }
   h.set('accept-encoding', 'identity');
-  // 선택: 서버가 SNI/Host를 확인하면 설정
   if (process.env.API_SNI_HOST) h.set('host', process.env.API_SNI_HOST);
   h.set('x-requested-with', 'XMLHttpRequest');
   return h;
+}
+
+function headersToObject(h: Headers): Record<string, string> {
+  const o: Record<string, string> = {};
+  h.forEach((v, k) => (o[k] = v));
+  return o;
 }
 
 function filterResHeaders(src: Headers) {
@@ -61,28 +72,35 @@ function filterResHeaders(src: Headers) {
   return h;
 }
 
-// Next 14/15 겸용 params 처리
-async function getParams(ctx: any): Promise<{ sock: string[] }> {
-  const p = (ctx && ctx.params) || {};
-  return typeof p.then === 'function' ? await p : p;
-}
-
 async function handle(
   req: NextRequest,
-  ctx: { params: { sock: string[] } } | { params: Promise<{ sock: string[] }> }
+  context:
+    | { params?: { sock?: string[] } }
+    | { params?: Promise<{ sock?: string[] }> }
 ) {
   if (!WS_BASE) {
     return NextResponse.json(
-      { message: 'API_WS_BASE missing', got: process.env.API_WS_BASE },
+      {
+        message: 'API_WS_BASE missing or empty',
+        received: process.env.API_WS_BASE,
+      },
       { status: 500 }
     );
   }
 
-  const { sock } = await getParams(ctx);
-  const tail = (sock ?? []).join('/');
+  // Next.js 14/15 모두 대응: params가 Promise일 수도 있음
+  let sockPath: string[] = [];
+  const p = (context as any)?.params;
+  if (p) {
+    const resolved =
+      typeof (p as any)?.then === 'function' ? await (p as any) : p;
+    sockPath = resolved?.sock || [];
+  }
+
+  const tail = sockPath.join('/');
   const upstreamUrl = `${WS_BASE}/ws/${tail}${req.nextUrl.search || ''}`;
 
-  // CORS preflight
+  // CORS Preflight
   if (req.method === 'OPTIONS') {
     const origin = req.headers.get('origin') ?? '*';
     return new NextResponse(null, {
@@ -92,61 +110,90 @@ async function handle(
         'Access-Control-Allow-Methods': 'GET,POST,OPTIONS,HEAD',
         'Access-Control-Allow-Headers':
           req.headers.get('access-control-request-headers') ||
-          'content-type,x-requested-with',
+          'content-type,authorization,x-requested-with',
         'Access-Control-Allow-Credentials': 'true',
         'Access-Control-Max-Age': '86400',
       },
     });
   }
 
-  // GET/HEAD은 body 금지
-  const body =
-    req.method === 'GET' || req.method === 'HEAD'
-      ? undefined
-      : await req.arrayBuffer();
+  // GET/HEAD는 body 없이
+  let body: ArrayBuffer | undefined;
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    const ab = await req.arrayBuffer();
+    body = ab.byteLength ? ab : undefined;
+  }
+
+  const requestHeaders = pickReqHeaders(req.headers);
 
   const res = await fetch(upstreamUrl, {
     method: req.method,
-    headers: pickReqHeaders(req.headers),
-    body: body?.byteLength ? body : undefined,
+    headers: headersToObject(requestHeaders), // Node fetch에서 HeadersInit 호환 안전
+    body,
     cache: 'no-store',
     redirect: 'follow',
-    // @ts-ignore
+    // @ts-ignore (Node 전용)
     agent: upstreamUrl.startsWith('https:') ? httpsAgent : undefined,
   });
 
-  const buf = Buffer.from(await res.arrayBuffer());
-
-  // 개발 중 문제 원인 확인
-  if (process.env.NODE_ENV === 'development' && res.status >= 400) {
-    console.log('[WS proxy] upstream', res.status, upstreamUrl);
-    try {
-      console.log('body(json):', JSON.parse(buf.toString('utf8')));
-    } catch {
-      console.log('body(text):', buf.toString('utf8'));
-    }
-  }
-
-  const out = filterResHeaders(res.headers);
+  // 응답 헤더 구성 (CORS pass-through)
+  const outHeaders = filterResHeaders(res.headers);
   const origin = req.headers.get('origin');
   if (origin) {
-    out.set('Access-Control-Allow-Origin', origin);
-    out.set('Access-Control-Allow-Credentials', 'true');
-    out.set('Vary', 'Origin');
+    outHeaders.set('Access-Control-Allow-Origin', origin);
+    outHeaders.set('Access-Control-Allow-Credentials', 'true');
+    outHeaders.set('Vary', 'Origin');
   }
 
-  return new NextResponse(buf, { status: res.status, headers: out });
+  // ✅ 핵심: 204나 HEAD는 body 없이 돌려야 함 (SockJS /xhr_send 등)
+  if (res.status === 204 || req.method === 'HEAD') {
+    return new NextResponse(null, { status: res.status, headers: outHeaders });
+  }
+
+  const buf = Buffer.from(await res.arrayBuffer());
+
+  // 에러 응답 디버그(선택)
+  if (res.status >= 400) {
+    console.log('[WS Proxy] Upstream error', {
+      status: res.status,
+      url: upstreamUrl,
+      method: req.method,
+      text: buf.toString('utf8').slice(0, 300),
+    });
+  }
+
+  return new NextResponse(buf, { status: res.status, headers: outHeaders });
 }
 
-export async function GET(req: NextRequest, ctx: any) {
-  return handle(req, ctx);
+export async function GET(
+  req: NextRequest,
+  context:
+    | { params?: { sock?: string[] } }
+    | { params?: Promise<{ sock?: string[] }> }
+) {
+  return handle(req, context);
 }
-export async function POST(req: NextRequest, ctx: any) {
-  return handle(req, ctx);
+export async function POST(
+  req: NextRequest,
+  context:
+    | { params?: { sock?: string[] } }
+    | { params?: Promise<{ sock?: string[] }> }
+) {
+  return handle(req, context);
 }
-export async function OPTIONS(req: NextRequest, ctx: any) {
-  return handle(req, ctx);
+export async function OPTIONS(
+  req: NextRequest,
+  context:
+    | { params?: { sock?: string[] } }
+    | { params?: Promise<{ sock?: string[] }> }
+) {
+  return handle(req, context);
 }
-export async function HEAD(req: NextRequest, ctx: any) {
-  return handle(req, ctx);
+export async function HEAD(
+  req: NextRequest,
+  context:
+    | { params?: { sock?: string[] } }
+    | { params?: Promise<{ sock?: string[] }> }
+) {
+  return handle(req, context);
 }
