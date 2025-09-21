@@ -14,4 +14,5 @@ export const QUERY_KEYS = {
   health: ['health'] as const,
   weight: ['weight'] as const,
   modelVersion: ['model', 'version'] as const,
+  model: ['model', 'single'] as const,
 } as const;

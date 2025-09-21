@@ -1,3 +1,4 @@
+// src/components/streaming/StreamingDetectionChart.tsx
 'use client';
 
 import { useStartDemo } from '@/hooks/queries/test-demo/useStartDemo';
@@ -28,12 +29,12 @@ export type StreamMeta = {
   isPaused: boolean;
   isStreaming: boolean;
   mode: 'TIMEMACHINE' | 'REALTIME';
-  progress: number; // 0..1
+  progress?: number; // 0..1  ← 옵셔널
   speedMultiplier: number;
   updatedAt: string;
 };
 
-type DetectionResult = {
+export type DetectionResult = {
   timestamp: string;
   score: number;
   prediction: 'fraud' | 'normal';
@@ -60,8 +61,12 @@ export default function StreamingDetectionChart({
   virtualTime,
   streamMeta,
 }: Props) {
+  // 데모 API 1회만
   const startDemo = useStartDemo();
+  const hasStartedRef = useRef(false);
   useEffect(() => {
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
     startDemo.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -84,6 +89,7 @@ export default function StreamingDetectionChart({
   const [animationIndex, setAnimationIndex] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // 슬라이더 위치가 바뀌면 보여줄 데이터 컷
   useEffect(() => {
     if (!data.length) return;
     const endIndex = Math.floor((data.length * resolvedPosition) / 100);
@@ -92,6 +98,7 @@ export default function StreamingDetectionChart({
     setAnimationIndex(newVisible.length);
   }, [data, resolvedPosition]);
 
+  // 재생 중이면 애니메이션 증가
   useEffect(() => {
     if (resolvedPlaying && data.length > 0) {
       const base = 100;
@@ -100,11 +107,18 @@ export default function StreamingDetectionChart({
         setAnimationIndex((prev) => (prev >= data.length ? prev : prev + 1));
       }, delay);
       intervalRef.current = i;
-      return () => clearInterval(i);
+      return () => {
+        clearInterval(i);
+        intervalRef.current = null;
+      };
     }
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
   }, [resolvedPlaying, data.length, speedMultiplier]);
 
+  // animationIndex가 증가할 때 실제 표시 데이터 갱신
   useEffect(() => {
     if (data.length > 0 && animationIndex > 0) {
       setVisibleData(data.slice(0, animationIndex));
@@ -114,7 +128,9 @@ export default function StreamingDetectionChart({
   const chartData = useMemo<ChartRow[]>(
     () =>
       visibleData.map((item) => ({
-        time: new Date(item.timestamp).toLocaleTimeString(),
+        time: new Date(item.timestamp).toLocaleTimeString('ko-KR', {
+          hour12: false,
+        }),
         score: item.score,
         prediction: item.prediction === 'fraud' ? 1 : 0,
         confidence: item.confidence,
@@ -142,12 +158,16 @@ export default function StreamingDetectionChart({
         <div className='bg-slate-800 border border-slate-600 rounded-lg p-3 shadow-lg'>
           <p className='text-slate-300 text-sm'>{`시간: ${label}`}</p>
           <p
-            className={`font-semibold ${row.prediction === 1 ? 'text-red-400' : 'text-green-400'}`}
+            className={`font-semibold ${
+              row.prediction === 1 ? 'text-red-400' : 'text-green-400'
+            }`}
           >
             {`예측: ${row.prediction === 1 ? '사기' : '정상'}`}
           </p>
           <p className='text-blue-400'>{`스코어: ${row.score.toFixed(3)}`}</p>
-          <p className='text-yellow-400'>{`신뢰도: ${(row.confidence * 100).toFixed(1)}%`}</p>
+          <p className='text-yellow-400'>{`신뢰도: ${(
+            row.confidence * 100
+          ).toFixed(1)}%`}</p>
           <div className='mt-2 space-y-1'>
             <p className='text-xs text-slate-400'>모델별 기여도:</p>
             <p className='text-xs'>LGBM: {(row.lgbm * 100).toFixed(1)}%</p>
@@ -173,7 +193,11 @@ export default function StreamingDetectionChart({
           <div className='flex items-center justify-between'>
             <h4 className='font-semibold flex items-center gap-2'>
               <div
-                className={`w-3 h-3 rounded-full ${resolvedPlaying ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`}
+                className={`w-3 h-3 rounded-full ${
+                  resolvedPlaying
+                    ? 'bg-green-400 animate-pulse'
+                    : 'bg-yellow-400'
+                }`}
               />
               스트리밍 상태
             </h4>
@@ -227,7 +251,7 @@ export default function StreamingDetectionChart({
                 dataKey='time'
                 stroke='#9CA3AF'
                 fontSize={12}
-                interval='preserveStartEnd'
+                minTickGap={24}
               />
               <YAxis stroke='#9CA3AF' fontSize={12} domain={[0, 1]} />
               <Tooltip content={<CustomTooltip />} />
@@ -257,7 +281,9 @@ export default function StreamingDetectionChart({
         <div className='bg-slate-900 border border-slate-700 rounded-xl p-4'>
           <h4 className='font-semibold mb-3 flex items-center gap-2'>
             <div
-              className={`w-2 h-2 rounded-full ${resolvedPlaying ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}
+              className={`w-2 h-2 rounded-full ${
+                resolvedPlaying ? 'bg-green-400 animate-pulse' : 'bg-gray-400'
+              }`}
             />
             실시간 스트림
           </h4>
@@ -273,7 +299,9 @@ export default function StreamingDetectionChart({
               >
                 <div className='flex justify-between items-center'>
                   <span className='text-xs font-mono'>
-                    {new Date(r.timestamp).toLocaleTimeString()}
+                    {new Date(r.timestamp).toLocaleTimeString('ko-KR', {
+                      hour12: false,
+                    })}
                   </span>
                   <span
                     className='text-xs px-2 py-1 rounded text-white'
@@ -325,11 +353,20 @@ export default function StreamingDetectionChart({
                   />
                   <KV
                     label='평균 신뢰도'
-                    value={`${((visibleData.reduce((s, r) => s + r.confidence, 0) / visibleData.length) * 100).toFixed(1)}%`}
+                    value={`${(
+                      (visibleData.reduce((s, r) => s + r.confidence, 0) /
+                        visibleData.length) *
+                      100
+                    ).toFixed(1)}%`}
                   />
                   <KV
                     label='사기 비율'
-                    value={`${((visibleData.filter((r) => r.prediction === 'fraud').length / visibleData.length) * 100).toFixed(1)}%`}
+                    value={`${(
+                      (visibleData.filter((r) => r.prediction === 'fraud')
+                        .length /
+                        visibleData.length) *
+                      100
+                    ).toFixed(1)}%`}
                   />
                 </div>
               </div>

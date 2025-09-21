@@ -1,140 +1,192 @@
+// src/components/streaming/TopBarContainer.tsx
 'use client';
 
-import StreamingDetectionChart from '@/components/streaming/StreamingDetectionChart';
+import StreamingDetectionChart, {
+  DetectionResult,
+  StreamMeta,
+} from '@/components/streaming/StreamingDetectionChart';
 import StreamingTopBar from '@/components/streaming/StreamingTopBar';
-import { useDashboardData } from '@/contexts/DashboardActionsContext';
-import { useStreaming } from '@/contexts/StreamingContext';
+
+import { useChangeSpeed } from '@/hooks/queries/streaming/useChangeSpeed';
+import { useGetStreamingStatus } from '@/hooks/queries/streaming/useGetStreamingStatus';
+import { useGetWebsocket } from '@/hooks/queries/streaming/useGetWebsocket';
+import { useJumpStreaming } from '@/hooks/queries/streaming/useJumpStreaming';
+import { usePauseStreaming } from '@/hooks/queries/streaming/usePauseStreaming';
+import { useResumeStreaming } from '@/hooks/queries/streaming/useResumeStreaming';
+import { useSetStreamingTimemachine } from '@/hooks/queries/streaming/useSetStreamingTimemachine';
+import { useStartStreamingRealtime } from '@/hooks/queries/streaming/useStartStreamingRealtime';
+import { useStopStreaming } from '@/hooks/queries/streaming/useStopStreaming';
+
 import { useMemo, useState } from 'react';
 
-/** 유틸: 현재 기준으로 범위(ms) */
-const RANGE_MS: Record<'24h' | '7d' | '30d', number> = {
+const RANGE_MS = {
   '24h': 24 * 3600_000,
   '7d': 7 * 24 * 3600_000,
   '30d': 30 * 24 * 3600_000,
-};
+} as const;
+type TimeRange = keyof typeof RANGE_MS;
 
 export default function TopBarContainer() {
-  const { online } = useDashboardData();
-  const {
-    status,
-    mode,
-    streamingData,
-    startRealtime,
-    startTimemachine,
-    pause,
-    resume,
-    changeSpeed,
-    refresh,
-    loading,
-    data, // 차트 데이터
-  } = useStreaming();
+  // 상태 조회 (백엔드 /streaming/status)
+  const { data: status, refetch, isFetching } = useGetStreamingStatus();
 
-  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('7d');
+  // REST 제어 훅
+  const startRealtime = useStartStreamingRealtime();
+  const startTimemachine = useSetStreamingTimemachine();
+  const pause = usePauseStreaming();
+  const resume = useResumeStreaming();
+  const stop = useStopStreaming();
+  const changeSpeed = useChangeSpeed();
+  const jump = useJumpStreaming();
 
-  /** 현재 시각 기준으로 범위 계산 */
-  const { rangeStartMs, rangeEndMs, spanMs, totalHours } = useMemo(() => {
-    const end = Date.now();
-    const span = RANGE_MS[timeRange];
-    const start = end - span;
-    return {
-      rangeStartMs: start,
-      rangeEndMs: end,
-      spanMs: span,
-      totalHours: Math.floor(span / 3600_000),
-    };
-  }, [timeRange]);
+  // WS 구독 데이터 (서버가 push하는 거래들)
+  const { transactions } = useGetWebsocket(); // [{ id, amount, merchant, time, isFraud, ...}]
 
-  /** status/streamingData → 표시값 */
-  const playing = streamingData
-    ? streamingData.isStreaming && !streamingData.isPaused
-    : status.playing;
-  const speed = streamingData?.speedMultiplier ?? status.speed;
-  const virtualTime =
-    streamingData?.currentVirtualTime ?? status.virtualTime ?? '';
+  const [timeRange, setTimeRange] = useState<TimeRange>('7d');
 
-  /** 진행률(%) 계산: 서버 progress 우선, 없으면 virtualTime으로 추정 */
+  // 진행률 계산: 서버 progress 우선, 없으면 virtualTime으로 추정
   const currentPosition = useMemo(() => {
-    if (typeof streamingData?.progress === 'number') {
-      return Math.max(0, Math.min(100, streamingData.progress * 100));
+    if (typeof status?.progress === 'number') {
+      return Math.max(0, Math.min(100, status.progress * 100));
     }
-    if (virtualTime) {
-      const vt = new Date(virtualTime).getTime();
-      const p = ((vt - rangeStartMs) / (spanMs || 1)) * 100;
-      return Math.max(0, Math.min(100, p));
+    const span = RANGE_MS[timeRange];
+    const end = Date.now();
+    const start = end - span;
+    const vtStr =
+      (status as any)?.currentVirtualTime ?? (status as any)?.currentTime ?? '';
+    const vt = Date.parse(vtStr);
+    if (Number.isFinite(vt)) {
+      return Math.max(0, Math.min(100, ((vt - start) / span) * 100));
     }
     return 100;
-  }, [streamingData?.progress, virtualTime, rangeStartMs, spanMs]);
+  }, [
+    status?.progress,
+    (status as any)?.currentVirtualTime,
+    (status as any)?.currentTime,
+    timeRange,
+  ]);
 
-  /** 배속 변경 */
-  const handleSpeedChange = async (newSpeed: number) => {
-    await changeSpeed(newSpeed);
+  // 재생/속도/가상시간 파생값
+  const playing = !!(status as any)?.isStreaming && !(status as any)?.isPaused;
+  const speed = (status as any)?.speedMultiplier ?? (status as any)?.speed ?? 1;
+  const virtualTime =
+    (status as any)?.currentVirtualTime ?? (status as any)?.currentTime ?? '';
+
+  // 버튼 핸들러
+  const onPlay = async () => {
+    await startRealtime.mutateAsync();
+    await refetch();
   };
-
-  /** 슬라이더 이동: 100%이면 실시간, 미만이면 타임머신(해당 절대시각) */
-  const handlePositionChange = async (percentage: number) => {
-    const clamped = Math.max(0, Math.min(100, percentage));
+  const onPause = async () => {
+    await pause.mutateAsync();
+    await refetch();
+  };
+  const onSpeedChange = async (v: number) => {
+    await changeSpeed.mutateAsync(v);
+    await refetch();
+  };
+  const onSeek = async (iso: string) => {
+    await jump.mutateAsync(iso);
+    await refetch();
+  };
+  const onPositionChange = async (pct: number) => {
+    const clamped = Math.max(0, Math.min(100, pct));
     if (clamped >= 99.9) {
-      await startRealtime();
+      await startRealtime.mutateAsync();
+      await refetch();
       return;
     }
-    const targetMs = rangeStartMs + (spanMs * clamped) / 100;
-    const iso = new Date(targetMs).toISOString();
-    await startTimemachine(iso, speed);
+    const span = RANGE_MS[timeRange];
+    const end = Date.now();
+    const start = end - span;
+    const target = new Date(start + (span * clamped) / 100).toISOString();
+    await startTimemachine.mutateAsync({
+      startTime: target,
+      speedMultiplier: speed,
+    });
+    await refetch();
   };
 
-  /** 수동 시점 이동 (ISO 직접 입력) */
-  const handleSeekIso = async (iso: string) => {
-    // iso가 현재 범위의 과거면 타임머신, 현재/미래면 실시간
-    const t = Date.parse(iso);
-    if (!Number.isFinite(t)) return;
-    if (t >= rangeEndMs - 1000) {
-      await startRealtime();
-    } else {
-      await startTimemachine(iso, speed);
-    }
-  };
+  // 🔧 차트 데이터 정규화 (타입 안전)
+  const normalizedData: DetectionResult[] = useMemo(
+    () =>
+      (transactions ?? []).map((t: any) => ({
+        timestamp: t.time ?? t.timestamp ?? new Date().toISOString(),
+        score: Number(t.score ?? t.amount ?? 0),
+        prediction: t.isFraud ? 'fraud' : 'normal',
+        confidence: Number(t.confidence ?? 0.8),
+        models: {
+          lgbm: Number(t.models?.lgbm ?? 0.33),
+          xgb: Number(t.models?.xgb ?? 0.33),
+          cat: Number(t.models?.cat ?? 0.34),
+        },
+      })),
+    [transactions]
+  );
 
-  /** /status 원본 표기용 메타 */
-  const streamMeta = streamingData && {
-    currentVirtualTime: streamingData.currentVirtualTime,
-    isPaused: streamingData.isPaused,
-    isStreaming: streamingData.isStreaming,
-    mode: streamingData.mode, // 'REALTIME' | 'TIMEMACHINE'
-    progress: streamingData.progress, // 0..1
-    speedMultiplier: streamingData.speedMultiplier,
-    updatedAt: streamingData.updatedAt,
-  };
+  // 🔧 StreamMeta로 매핑 (progress는 옵셔널)
+  const meta: StreamMeta | null = useMemo(() => {
+    if (!status) return null;
+    return {
+      currentVirtualTime:
+        (status as any).currentVirtualTime ?? (status as any).currentTime ?? '',
+      isPaused: !!(status as any).isPaused,
+      isStreaming: !!(status as any).isStreaming,
+      mode:
+        (status as any).mode === 'REALTIME' ||
+        (status as any).mode === 'TIMEMACHINE'
+          ? (status as any).mode
+          : 'REALTIME',
+      progress:
+        typeof (status as any).progress === 'number'
+          ? (status as any).progress
+          : undefined,
+      speedMultiplier:
+        (status as any).speedMultiplier ?? (status as any).speed ?? 1,
+      updatedAt: (status as any).updatedAt ?? new Date().toISOString(),
+    };
+  }, [status]);
+
+  const loading =
+    isFetching ||
+    startRealtime.isPending ||
+    startTimemachine.isPending ||
+    pause.isPending ||
+    resume.isPending ||
+    changeSpeed.isPending ||
+    jump.isPending ||
+    stop.isPending;
 
   return (
     <div className='space-y-6'>
       <StreamingTopBar
         playing={playing}
         speed={speed}
-        online={online}
-        onPlay={startRealtime}
-        onPause={pause}
-        onSpeedChange={handleSpeedChange}
-        onSeek={handleSeekIso}
+        online={true}
+        onPlay={onPlay}
+        onPause={onPause}
+        onSpeedChange={onSpeedChange}
+        onSeek={onSeek}
         virtualTime={virtualTime}
         timeRange={timeRange}
         onTimeRangeChange={setTimeRange}
         currentPosition={currentPosition}
-        onPositionChange={handlePositionChange}
-        totalDuration={totalHours}
-        onRefresh={refresh}
+        onPositionChange={onPositionChange}
+        totalDuration={Math.floor(RANGE_MS[timeRange] / 3600_000)}
+        onRefresh={() => refetch()}
         loading={loading}
-        streamMeta={streamMeta}
+        streamMeta={meta}
       />
 
-      {/* 메인 차트/패널 (예시) */}
+      {/* 차트 하나만 */}
       <StreamingDetectionChart
-        data={data}
+        data={normalizedData}
         playing={playing}
         currentPosition={currentPosition}
         threshold={0.5}
         timeRange={timeRange}
         virtualTime={virtualTime}
-        streamMeta={streamMeta}
+        streamMeta={meta}
       />
     </div>
   );

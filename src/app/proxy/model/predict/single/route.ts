@@ -1,11 +1,9 @@
-// src/app/proxy/test/start-demo/route.ts
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import https from 'https';
 import { NextRequest, NextResponse } from 'next/server';
 
-// ─────────────────────────────────────────────────────────────
 // /api 자동 보정
 function normalizeBase(raw?: string | null) {
   if (!raw) return '';
@@ -16,17 +14,16 @@ const API = normalizeBase(process.env.API_BASE_URL);
 
 // 개발 환경에서 API URL 확인
 if (process.env.NODE_ENV === 'development') {
-  console.log('🔗 API Base URL:', API || '(missing)');
+  console.log('🔗 API Base URL:', API);
 }
 
-// ─────────────────────────────────────────────────────────────
-// HTTPS 에이전트 (자가서명 허용 + SNI 선택)
+// TLS 검증 우회 에이전트 생성
 const httpsAgent = new https.Agent({
-  rejectUnauthorized: false,
+  rejectUnauthorized: false, // 자체 서명 인증서 허용
   ...(process.env.API_SNI_HOST ? { servername: process.env.API_SNI_HOST } : {}),
 });
 
-// Hop-by-hop 헤더 (응답에서 제거)
+// hop-by-hop 헤더
 const HOP = new Set([
   'connection',
   'keep-alive',
@@ -41,26 +38,51 @@ const HOP = new Set([
   'content-length',
 ]);
 
-// 요청에서 전달할 헤더만 선별
-function pickReqHeaders(src: Headers) {
+/** req.headers에서 accessToken 쿠키 추출 */
+function getAccessTokenFromCookie(req: NextRequest): string | null {
+  const cookie = req.headers.get('cookie') ?? '';
+  // 간단 파서
+  for (const part of cookie.split(';')) {
+    const [k, ...rest] = part.trim().split('=');
+    if (k === 'accessToken') {
+      const v = rest.join('=').trim();
+      return v || null;
+    }
+  }
+  return null;
+}
+
+/** 업스트림으로 넘길 헤더 구성 (Authorization 보강, Cookie 미전달) */
+function buildUpstreamHeaders(req: NextRequest): Headers {
   const h = new Headers();
-  for (const k of [
-    'accept',
-    'accept-language',
-    'user-agent',
-    'authorization',
-    'cookie',
-    'content-type', // JSON/폼 등 원본 타입 전달
-  ]) {
-    const v = src.get(k);
+
+  // 보존할 일반 헤더
+  for (const k of ['accept', 'accept-language', 'user-agent', 'content-type']) {
+    const v = req.headers.get(k);
     if (v) h.set(k, v);
   }
-  h.set('accept-encoding', 'identity'); // 압축 해제
+
+  // 인코딩 강제(압축 해제)
+  h.set('accept-encoding', 'identity');
+
+  // Host SNI 강제 (필요시)
   if (process.env.API_SNI_HOST) h.set('host', process.env.API_SNI_HOST!);
+
+  // Authorization 우선순위: 요청 헤더 → 쿠키 accessToken
+  const auth = req.headers.get('authorization');
+  if (auth && auth.trim().length > 0) {
+    h.set('authorization', auth);
+  } else {
+    const token = getAccessTokenFromCookie(req);
+    if (token) h.set('authorization', `Bearer ${token}`);
+  }
+
+  // ❌ Cookie는 업스트림으로 전달하지 않음 (CSRF 간섭 방지)
+  // 필요하다면 여기서 h.set('cookie', ...) 처리
+
   return h;
 }
 
-// 응답 헤더 필터링
 function filterResHeaders(src: Headers) {
   const h = new Headers();
   src.forEach((v, k) => {
@@ -69,15 +91,11 @@ function filterResHeaders(src: Headers) {
   return h;
 }
 
-// content-type이 JSON인지
-function isJson(req: NextRequest) {
-  return (req.headers.get('content-type') || '')
-    .toLowerCase()
-    .includes('application/json');
-}
-
-// ─────────────────────────────────────────────────────────────
-export async function POST(req: NextRequest) {
+// 공통 요청 처리 함수
+async function handleRequest(
+  req: NextRequest,
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
+) {
   if (!API) {
     return NextResponse.json(
       { message: 'API_BASE_URL missing' },
@@ -85,57 +103,46 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const upstreamUrl = `${API}/test/start-demo`;
+  const upstreamUrl = `${API}/model/predict/single/${req.nextUrl.search || ''}`;
 
   try {
-    const shouldSendBody = true; // POST
+    const shouldSendBody = method !== 'GET';
     const requestBody = shouldSendBody ? await req.arrayBuffer() : undefined;
-    const hasBody = !!requestBody && requestBody.byteLength > 0;
 
     if (process.env.NODE_ENV === 'development') {
       console.log('📤 API 요청:');
-      console.log('Method: POST');
+      console.log('Method:', method);
       console.log('URL:', upstreamUrl);
       console.log(
         'Request Headers:',
         Object.fromEntries(req.headers.entries())
       );
-
-      const bodyText = hasBody
-        ? Buffer.from(requestBody!).toString('utf8')
-        : '';
-      console.log('Request Body:', bodyText || '(empty)');
-
-      // JSON 파싱은 JSON 타입 + 내용 있을 때만 시도
-      if (isJson(req) && bodyText.trim().length > 0) {
+      if (requestBody) {
+        const bodyText = Buffer.from(requestBody).toString('utf8');
+        console.log('Request Body:', bodyText);
         try {
           const jsonBody = JSON.parse(bodyText);
           console.log('✅ JSON 파싱 성공:', jsonBody);
         } catch (e) {
-          console.log('ℹ️ JSON 파싱 스킵(형식 불일치):', (e as Error)?.message);
+          console.log('❌ JSON 파싱 실패:', e);
         }
-      } else {
-        console.log(
-          'ℹ️ JSON 파싱 생략: content-type이 application/json이 아니거나 바디 비어있음'
-        );
       }
     }
 
     const fetchOptions: RequestInit & { agent?: any } = {
-      method: 'POST',
-      headers: pickReqHeaders(req.headers),
+      method,
+      headers: buildUpstreamHeaders(req),
       cache: 'no-store',
       redirect: 'follow',
-      // @ts-ignore Node 전용
+      // @ts-ignore Node 전용 옵션
       agent: upstreamUrl.startsWith('https:') ? httpsAgent : undefined,
     };
 
-    if (hasBody) {
-      fetchOptions.body = requestBody!;
+    if (shouldSendBody && requestBody) {
+      fetchOptions.body = requestBody;
     }
 
     const res = await fetch(upstreamUrl, fetchOptions);
-    const buf = Buffer.from(await res.arrayBuffer());
 
     if (process.env.NODE_ENV === 'development') {
       console.log('📥 API 응답:');
@@ -144,7 +151,11 @@ export async function POST(req: NextRequest) {
         'Response Headers:',
         Object.fromEntries(res.headers.entries())
       );
+    }
 
+    const buf = Buffer.from(await res.arrayBuffer());
+
+    if (process.env.NODE_ENV === 'development') {
       const responseText = buf.toString('utf8');
       if (res.status >= 400) {
         console.log('❌ Error Response Body:', responseText);
@@ -158,7 +169,7 @@ export async function POST(req: NextRequest) {
             details: errorJson.details,
           });
         } catch {
-          // non-JSON error body
+          console.log('텍스트 응답:', responseText);
         }
       } else {
         console.log('✅ Success Response:', responseText);
@@ -188,4 +199,14 @@ export async function POST(req: NextRequest) {
       { status: 502 }
     );
   }
+}
+
+// GET 요청 핸들러
+export async function GET(req: NextRequest) {
+  return handleRequest(req, 'GET');
+}
+
+// PUT 요청 핸들러
+export async function POST(req: NextRequest) {
+  return handleRequest(req, 'POST');
 }
