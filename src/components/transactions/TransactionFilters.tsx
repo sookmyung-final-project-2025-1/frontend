@@ -1,40 +1,40 @@
-// src/components/transaction/TransactionFilters.tsx
+// src/components/transactions/TransactionFilters.tsx
 'use client';
 
 import { TransactionRequestType } from '@/types/transaction.schema';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
+
+type Pageable = NonNullable<TransactionRequestType['pageable']>;
 
 type Props = {
   filters: TransactionRequestType;
   onChange: (key: keyof TransactionRequestType, value: any) => void;
   onReset: () => void;
-  /** 적용 버튼 클릭 시 최종 쿼리 파라미터를 넘겨서 요청하게 함 */
-  onApply?: (params: URLSearchParams) => void;
+
+  /** 부모의 pageable을 그대로 내려받아 조작 (단일 소스) */
+  pageable: Pageable;
+  onPageableChange: (updater: (p: Pageable) => Pageable) => void;
+
+  /** (선택) 현재 파라미터 프리뷰가 필요하면 true */
+  showPreview?: boolean;
 };
 
-/** ----------------- 시간/파라미터 유틸 ----------------- */
-
-/** 'YYYY-MM-DDTHH:MM' → 'YYYY-MM-DDTHH:MM:ss' (서버 예시 형식) */
 function toApiLocalDateTime(
   input: string | undefined,
   opts?: { end?: boolean }
 ) {
   if (!input) return '';
-  // datetime-local은 보통 'YYYY-MM-DDTHH:MM' 형식
-  // 초가 없으면 서버 예시에 맞춰 시작은 :00, 끝은 :59 부여
   const hasSeconds = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(input);
   if (hasSeconds) return input;
   const suffix = opts?.end ? ':59' : ':00';
   return `${input}${suffix}`;
 }
 
-/** 빈 값 제거하며 URLSearchParams 생성 */
 function buildParams(
   filters: TransactionRequestType,
   pageable?: { page?: number; size?: number; sort?: string[] }
 ) {
   const params = new URLSearchParams();
-
   const push = (k: string, v: unknown) => {
     if (v === undefined || v === null) return;
     const s = String(v).trim();
@@ -51,13 +51,11 @@ function buildParams(
     push('maxAmount', filters.maxAmount);
   if (typeof filters.isFraud === 'boolean') push('isFraud', filters.isFraud);
 
-  // ISO 8601 (오프셋 없는 로컬)로 맞춤
   const start = toApiLocalDateTime(filters.startTime, { end: false });
   const end = toApiLocalDateTime(filters.endTime, { end: true });
   if (start) push('startTime', start);
   if (end) push('endTime', end);
 
-  // pageable은 객체 → page/size + sort[]=... 로 평탄화
   if (pageable) {
     if (typeof pageable.page === 'number') push('page', pageable.page);
     if (typeof pageable.size === 'number') push('size', pageable.size);
@@ -65,7 +63,6 @@ function buildParams(
       for (const s of pageable.sort) push('sort', s);
     }
   }
-
   return params;
 }
 
@@ -73,37 +70,42 @@ export default function TransactionFilters({
   filters,
   onChange,
   onReset,
-  onApply,
+  pageable,
+  onPageableChange,
+  showPreview,
 }: Props) {
   const inputCls =
     'w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-slate-100 placeholder:text-slate-400 ' +
     'focus:outline-none focus:ring-2 focus:ring-slate-500/60 focus:border-slate-500';
 
-  // 페이지네이션 로컬 상태(필요 시 밖으로 뺄 수 있음)
-  const [pageable, setPageable] = useState<{
-    page: number;
-    size: number;
-    sort: string[];
-  }>({
-    page: 0,
-    size: 10,
-    sort: ['reportedAt,desc'],
-  });
+  // 정렬 UI용 파생 상태 (pageable.sort는 ["field,dir"] 형태의 0~1개만 사용한다고 가정)
+  const currentSort = pageable.sort?.[0] ?? '';
+  const [sortField, sortDir] = currentSort.split(','); // e.g. "createdAt,desc"
 
-  // 미리보기용 쿼리 스트링 (옵션)
-  const previewQs = useMemo(
-    () => buildParams(filters, pageable).toString(),
-    [filters, pageable]
-  );
+  const previewQs = useMemo(() => {
+    if (!showPreview) return '';
+    return buildParams(filters, pageable).toString();
+  }, [filters, pageable, showPreview]);
 
-  const handleApply = () => {
-    const params = buildParams(filters, pageable);
-    onApply?.(params); // 부모에서 이 params로 API 요청 실행
+  const handleSortFieldChange = (field: string) => {
+    onPageableChange((p) => ({
+      ...p,
+      page: 0,
+      sort: field ? [`${field},${sortDir || 'desc'}`] : [], // 필드 없으면 빈 배열
+    }));
+  };
+
+  const handleSortDirChange = (dir: 'asc' | 'desc') => {
+    onPageableChange((p) => ({
+      ...p,
+      page: 0,
+      sort: sortField ? [`${sortField},${dir}`] : [], // 필드 없으면 빈 배열
+    }));
   };
 
   const resetAll = () => {
     onReset();
-    setPageable({ page: 0, size: 10, sort: ['reportedAt,desc'] });
+    onPageableChange((p) => ({ ...p, page: 0, size: 10, sort: [] })); // ✅ 기본은 빈 배열
   };
 
   return (
@@ -221,8 +223,8 @@ export default function TransactionFilters({
         </div>
       </div>
 
-      {/* 페이지네이션(옵션) */}
-      <div className='grid grid-cols-3 gap-3'>
+      {/* 페이지네이션 + 정렬 */}
+      <div className='grid grid-cols-1 md:grid-cols-3 gap-3'>
         <div>
           <label className='block text-sm mb-1 text-slate-300'>페이지</label>
           <input
@@ -230,7 +232,10 @@ export default function TransactionFilters({
             min={0}
             value={pageable.page}
             onChange={(e) =>
-              setPageable((p) => ({ ...p, page: Number(e.target.value) || 0 }))
+              onPageableChange((p) => ({
+                ...p,
+                page: Number(e.target.value) || 0,
+              }))
             }
             className={inputCls}
           />
@@ -244,18 +249,60 @@ export default function TransactionFilters({
             min={1}
             value={pageable.size}
             onChange={(e) =>
-              setPageable((p) => ({ ...p, size: Number(e.target.value) || 10 }))
+              onPageableChange((p) => ({
+                ...p,
+                size: Number(e.target.value) || 10,
+              }))
             }
             className={inputCls}
           />
+        </div>
+
+        {/* ✅ 정렬 UI */}
+        <div className='grid grid-cols-2 gap-2'>
+          <div>
+            <label className='block text-sm mb-1 text-slate-300'>
+              정렬 필드
+            </label>
+            <select
+              value={sortField || ''}
+              onChange={(e) => handleSortFieldChange(e.target.value)}
+              className={inputCls}
+            >
+              <option value=''>선택 안 함 (기본)</option>
+              <option value='createdAt'>createdAt</option>
+              <option value='updatedAt'>updatedAt</option>
+              <option value='transactionTime'>transactionTime</option>
+              <option value='reportedAt'>reportedAt</option>
+              <option value='amount'>amount</option>
+              <option value='userId'>userId</option>
+              {/* 필요한 필드 자유롭게 추가 */}
+            </select>
+          </div>
+          <div>
+            <label className='block text-sm mb-1 text-slate-300'>
+              정렬 방향
+            </label>
+            <select
+              value={(sortDir as 'asc' | 'desc') || 'desc'}
+              onChange={(e) =>
+                handleSortDirChange(e.target.value as 'asc' | 'desc')
+              }
+              className={inputCls}
+              disabled={!sortField}
+              title={!sortField ? '정렬 필드를 먼저 선택하세요' : undefined}
+            >
+              <option value='asc'>오름차순</option>
+              <option value='desc'>내림차순</option>
+            </select>
+          </div>
         </div>
       </div>
 
       {/* 액션 */}
       <div className='flex items-center justify-between'>
         <div className='text-xs text-slate-500 truncate'>
-          {/* 미리보기: ?userId=...&startTime=... */}
-          {previewQs ? `?${previewQs}` : ''}
+          {showPreview && (previewQs ? `?${previewQs}` : '')}
         </div>
         <div className='flex gap-2'>
           <button
@@ -263,12 +310,6 @@ export default function TransactionFilters({
             className='px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700'
           >
             필터 초기화
-          </button>
-          <button
-            onClick={handleApply}
-            className='px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700'
-          >
-            적용 및 조회
           </button>
         </div>
       </div>

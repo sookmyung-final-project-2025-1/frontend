@@ -17,13 +17,12 @@ import type { DetectionResult, StreamMeta, TimeRange } from './types';
 type Props = {
   data: DetectionResult[];
   threshold: number;
-
-  // 대시보드에서 모두 내려보내는 버전 (정확한 연동)
   playing?: boolean;
   currentPosition?: number; // 0..100
   timeRange?: TimeRange;
   virtualTime?: string;
   streamMeta?: StreamMeta | null;
+  online?: boolean; // ← 추가: WS 연결 상태
 };
 
 type ChartRow = {
@@ -44,8 +43,8 @@ export default function StreamingDetectionChart({
   timeRange,
   virtualTime,
   streamMeta,
+  online,
 }: Props) {
-  // 재생/포지션/메타 해석 (옵셔널 대비 기본값)
   const resolvedPlaying = streamMeta
     ? streamMeta.isStreaming && !streamMeta.isPaused
     : !!playing;
@@ -59,12 +58,10 @@ export default function StreamingDetectionChart({
   const currentVirtualTime =
     streamMeta?.currentVirtualTime ?? virtualTime ?? '';
 
-  // 애니메이션 보이기용 버퍼
   const [visibleData, setVisibleData] = useState<DetectionResult[]>([]);
   const [animationIndex, setAnimationIndex] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 슬라이더 위치에 맞춰 자르기
   useEffect(() => {
     if (!data.length) {
       setVisibleData([]);
@@ -77,7 +74,6 @@ export default function StreamingDetectionChart({
     setAnimationIndex(newVisible.length);
   }, [data, resolvedPosition]);
 
-  // 재생 중이면 점차 증가
   useEffect(() => {
     if (resolvedPlaying && data.length > 0) {
       const base = 100;
@@ -97,7 +93,6 @@ export default function StreamingDetectionChart({
     }
   }, [resolvedPlaying, data.length, speedMultiplier]);
 
-  // animationIndex 증가에 따라 갱신
   useEffect(() => {
     if (data.length > 0 && animationIndex > 0) {
       setVisibleData(data.slice(0, animationIndex));
@@ -121,8 +116,15 @@ export default function StreamingDetectionChart({
   );
 
   return (
-    <div className='bg-slate-900 border border-slate-700 rounded-xl p-4'>
-      <div className='flex justify-between items-center mb-3'>
+    <div className='relative rounded-xl border border-slate-700 bg-slate-900 p-4'>
+      {/* 상태 배지: WS 연결 중일 때만 노출 (요청/데이터 수신 중에는 안 뜸) */}
+      {!online && (
+        <div className='absolute right-4 top-4 z-10 rounded-full border border-yellow-600/40 bg-yellow-900/30 px-3 py-1 text-xs text-yellow-200'>
+          실시간 연동 중…
+        </div>
+      )}
+
+      <div className='mb-3 flex items-center justify-between'>
         <h3 className='text-lg font-semibold'>실시간 사기 탐지 결과</h3>
         <div className='text-sm text-slate-400'>
           {visibleData.length} / {data.length} 포인트 ·{' '}
@@ -138,7 +140,7 @@ export default function StreamingDetectionChart({
           >
             <CartesianGrid strokeDasharray='3 3' />
             <XAxis dataKey='time' tick={{ fontSize: 12 }} />
-            <YAxis domain={[0, 1]} tick={{ fontSize: 12 }} />
+            <YAxis domain={[0, 'auto']} tick={{ fontSize: 12 }} />
             <Tooltip />
             <Legend />
             <ReferenceLine

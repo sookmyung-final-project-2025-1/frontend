@@ -1,14 +1,62 @@
-// src/hooks/ws/useGetWebsocket.ts
 'use client';
 
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import { useEffect, useRef, useState } from 'react';
-import SockJS from 'sockjs-client';
+import SockJS from 'sockjs-client'; // http/https용만 사용됨
 
 type ConnStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
+type WsPacket =
+  | {
+      transactionCount?: number;
+      virtualTime?: string;
+      timestamp?: string;
+      transactions?: any[];
+      data?: any[];
+      [k: string]: any;
+    }
+  | any[]
+  | null
+  | undefined;
+
+/* 날짜 연도만 현재로 시프트 (월/일/시분초 유지) */
+function shiftYearToNow(input: unknown): unknown {
+  if (typeof input !== 'string') return input;
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return input;
+  const now = new Date();
+  d.setFullYear(now.getFullYear());
+  return d.toISOString();
+}
+
+/* 단일 트랜잭션 시간 필드 시프트 */
+function normalizeAndShiftItem(t: any): any {
+  if (!t || typeof t !== 'object') return t;
+  const out: any = { ...t };
+  const TS_KEYS = ['time', 'timestamp', 'eventTime', 'createdAt', 'updatedAt'];
+  for (const k of TS_KEYS) if (out[k] != null) out[k] = shiftYearToNow(out[k]);
+  return out;
+}
+
+/* 패킷에서 거래 배열 추출 + 시프트 */
+function extractTransactions(packet: WsPacket): any[] {
+  let list: any[] = [];
+  if (!packet) return list;
+  if (Array.isArray(packet)) list = packet;
+  else if (Array.isArray((packet as any).transactions))
+    list = (packet as any).transactions;
+  else if (Array.isArray((packet as any).data)) list = (packet as any).data;
+  else if (typeof packet === 'object') list = [packet];
+  return list.map(normalizeAndShiftItem);
+}
+
 export function useGetWebsocket() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<{
+    transactions: any[];
+    virtualTime?: string;
+    transactionCount?: number;
+  }>({ transactions: [] });
+
   const [statusData, setStatusData] = useState<any>(null);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnStatus>('disconnected');
@@ -22,60 +70,104 @@ export function useGetWebsocket() {
     if (startedRef.current) return;
     startedRef.current = true;
 
-    /**
-     * 핵심: 프록시 엔드포인트는 동일 오리진 상대경로로 사용
-     * - 서버(Nginx 등)에서 /proxy/ws → 백엔드 /ws 로 업그레이드 프록시되어 있어야 함
-     */
-    const base = process.env.NEXT_PUBLIC_API_WS_BASE?.replace(/\/+$/, '') || '';
-    // base가 비어있으면 현재 오리진 사용 → '/proxy/ws'
-    const wsUrl = `${base}/ws`;
+    const RAW_URL = (process.env.NEXT_PUBLIC_API_WS_URL || '').trim();
+    if (!RAW_URL) {
+      console.error('NEXT_PUBLIC_API_WS_URL is empty');
+      return;
+    }
 
-    console.log('WebSocket connecting to:', wsUrl);
+    const isWsScheme = /^wss?:\/\//i.test(RAW_URL);
+    const isHttpScheme = /^https?:\/\//i.test(RAW_URL);
+    if (!isWsScheme && !isHttpScheme) {
+      console.error('Invalid WS URL scheme:', RAW_URL);
+      return;
+    }
+
+    // ⚠️ 경로 보정 제거: 서버가 wss://.../ws 로 직접 받는 환경 고려
+    const finalUrl = RAW_URL;
+
+    console.log(
+      `[WS] URL=${finalUrl} MODE=${isWsScheme ? 'native' : 'sockjs'}`
+    );
     setConnectionStatus('connecting');
 
-    // SockJS 인스턴스 (상대/절대 URL 모두 허용)
-    const sock = new SockJS(wsUrl, undefined, {
-      transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
-      timeout: 10000,
-    });
-
     const client = new Client({
-      webSocketFactory: () => sock as unknown as WebSocket,
       reconnectDelay: 3000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
+      heartbeatIncoming: 0,
+      heartbeatOutgoing: 0,
       debug: (msg) => {
-        if (process.env.NODE_ENV === 'development') {
-          // eslint-disable-next-line no-console
-          console.log('[STOMP]', msg);
-        }
+        if (process.env.NODE_ENV === 'development') console.log('[STOMP]', msg);
       },
-      onConnect: (frame) => {
-        console.log('STOMP connected:', frame);
+      onConnect: () => {
         setConnectionStatus('connected');
 
-        // 실시간 거래 데이터
         transactionSubRef.current = client.subscribe(
           '/topic/realtime-transactions',
           (msg: IMessage) => {
             try {
-              const parsed = JSON.parse(msg.body);
-              setData(parsed);
+              const raw = msg.body ?? '';
+              const parsed: WsPacket = raw ? JSON.parse(raw) : null;
+
+              const list = extractTransactions(parsed);
+              const vtRaw =
+                (parsed && (parsed as any).virtualTime) ||
+                (parsed && (parsed as any).timestamp) ||
+                undefined;
+              const vtShifted = vtRaw
+                ? (shiftYearToNow(vtRaw) as string)
+                : undefined;
+
+              setData({
+                transactions: list,
+                transactionCount:
+                  (parsed &&
+                  typeof (parsed as any).transactionCount === 'number'
+                    ? (parsed as any).transactionCount
+                    : list.length) ?? 0,
+                virtualTime: vtShifted,
+              });
+
+              console.log(
+                '[WS RX] tx.len=',
+                list.length,
+                'virtualTime=',
+                vtShifted ?? '(none)',
+                'sample=',
+                list[0]
+              );
             } catch (e) {
-              console.error('parse transaction msg failed:', e, msg.body);
+              console.error('parse transaction failed:', e, msg.body);
             }
           }
         );
 
-        // 스트리밍 상태
         statusSubRef.current = client.subscribe(
           '/topic/streaming-status',
           (msg: IMessage) => {
             try {
-              const parsed = JSON.parse(msg.body);
-              setStatusData(parsed);
+              const raw = msg.body ?? '';
+              const parsed = raw ? JSON.parse(raw) : null;
+
+              const shifted =
+                parsed && typeof parsed === 'object'
+                  ? (() => {
+                      const out: any = { ...parsed };
+                      const keys = [
+                        'currentVirtualTime',
+                        'currentTime',
+                        'updatedAt',
+                        'startTime',
+                        'endTime',
+                      ];
+                      for (const k of keys)
+                        if (out[k] != null) out[k] = shiftYearToNow(out[k]);
+                      return out;
+                    })()
+                  : parsed;
+
+              setStatusData(shifted);
             } catch (e) {
-              console.error('parse status msg failed:', e, msg.body);
+              console.error('parse status failed:', e, msg.body);
             }
           }
         );
@@ -85,11 +177,16 @@ export function useGetWebsocket() {
         setConnectionStatus('error');
       },
       onWebSocketError: (error) => {
-        console.error('WebSocket error:', error);
+        console.error('WebSocket error (likely TLS/handshake):', error);
         setConnectionStatus('error');
       },
-      onWebSocketClose: () => {
-        console.log('WebSocket closed');
+      onWebSocketClose: (evt?: CloseEvent) => {
+        console.log(
+          'WebSocket closed',
+          evt
+            ? { code: evt.code, reason: evt.reason, wasClean: evt.wasClean }
+            : {}
+        );
         setConnectionStatus('disconnected');
       },
       onDisconnect: () => {
@@ -97,6 +194,16 @@ export function useGetWebsocket() {
         setConnectionStatus('disconnected');
       },
     });
+
+    if (isWsScheme) {
+      client.brokerURL = finalUrl; // 예: wss://host/ws (보정 없이 사용)
+    } else {
+      const sock = new SockJS(finalUrl, undefined, {
+        transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
+        timeout: 10000,
+      });
+      client.webSocketFactory = () => sock as unknown as WebSocket;
+    }
 
     client.activate();
     clientRef.current = client;
@@ -120,16 +227,11 @@ export function useGetWebsocket() {
   };
 
   return {
-    // 거래 데이터
     data,
-    transactions: data?.transactions ?? [],
-    virtualTime: data?.virtualTime,
-    transactionCount: data?.transactionCount ?? 0,
-
-    // 상태 데이터
+    transactions: data.transactions ?? [],
+    virtualTime: data.virtualTime,
+    transactionCount: data.transactionCount ?? 0,
     statusData,
-
-    // 연결 상태
     connectionStatus,
     reconnect,
   };
