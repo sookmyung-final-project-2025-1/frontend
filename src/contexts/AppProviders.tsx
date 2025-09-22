@@ -9,10 +9,12 @@ export default function AppProviders({
   initialConfidenceRange,
   initialKpiRange,
   initialSeriesProbRange,
+  temporalEnabled = true,
 }: PropsWithChildren & {
   initialConfidenceRange?: any;
   initialKpiRange?: any;
   initialSeriesProbRange?: any;
+  temporalEnabled?: boolean;
 }) {
   return (
     <DashboardDataProvider

@@ -1,3 +1,4 @@
+// src/hooks/queries/transactions/useAllTransaction.ts
 import useBuildParams from '@/lib/useBuildParams';
 import {
   PageableType,
@@ -8,6 +9,18 @@ import { useApiQuery } from '../useApi';
 
 type PageableMode = 'nested' | 'flat' | 'json';
 const PAGEABLE_MODE: PageableMode = 'nested';
+
+/** ---------- 유틸: datetime-local → 로컬(초 포함) ---------- */
+const withSeconds = (v?: string | null, opts?: { end?: boolean }) => {
+  if (!v) return undefined;
+  // 이미 초가 있으면 그대로
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(v)) return v;
+  // HH:mm 만 있을 때 초 채우기
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v))
+    return `${v}${opts?.end ? ':59' : ':00'}`;
+  // 그 외는 그대로 (useApi에서 못 잡을 수도 있음)
+  return v;
+};
 
 function useAddPageable(
   params: URLSearchParams,
@@ -51,6 +64,10 @@ export const useAllTransaction = (args: TransactionRequestType) => {
     pageable,
   } = args;
 
+  // ✅ 초를 채워서 useApi의 1970 변환에 걸리도록 맞춘다
+  const startLocal = withSeconds(startTime, { end: false });
+  const endLocal = withSeconds(endTime, { end: true });
+
   const params = useBuildParams({
     userId,
     merchant,
@@ -58,8 +75,8 @@ export const useAllTransaction = (args: TransactionRequestType) => {
     minAmount,
     maxAmount,
     ...(isFraud !== undefined ? { isFraud: isFraud ? 'true' : 'false' } : {}),
-    startTime,
-    endTime,
+    startTime: startLocal,
+    endTime: endLocal,
   });
 
   useAddPageable(params, pageable, PAGEABLE_MODE);

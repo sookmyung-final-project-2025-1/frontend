@@ -35,8 +35,8 @@ export default function Controls({
           }
           className='w-full h-[44px] rounded-lg border border-slate-700 bg-slate-800 pl-3 pr-5 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500'
         >
-          <option value='hourly'>시간별 (1일)</option>
-          <option value='daily'>일별 (1개월)</option>
+          <option value='hourly'>시간별 (1시간)</option>
+          <option value='daily'>일별 (1일)</option>
           <option value='weekly'>주별 (7일)</option>
           <option value='monthly'>월별 (1개월)</option>
         </select>

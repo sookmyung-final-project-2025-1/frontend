@@ -15,9 +15,9 @@ import {
   YAxis,
 } from 'recharts';
 
-// =========================
-// 유틸
-// =========================
+/* =========================
+   유틸
+   ========================= */
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const daysInMonth = (year: number, month: number) =>
   new Date(year, month, 0).getDate(); // month는 1~12 가정
@@ -41,9 +41,14 @@ const toPercent = (v: number) => {
   return `${pct.toFixed(2)}%`;
 };
 
-// =========================
-// 타입
-// =========================
+// 화면 표시에 사용할 연도 강제(서버에서 1970 등으로 오더라도 보여주는 연도는 선택한 연도)
+// '1970-09-22...' 처럼 4자리로 시작하면 선두 연도만 교체
+const forceDisplayYear = (s: string, displayYear: number) =>
+  /^\d{4}-/.test(s) ? s.replace(/^\d{4}/, String(displayYear)) : s;
+
+/* =========================
+   타입
+   ========================= */
 type DailyResponse = {
   date: string;
   fraudRate: number; // 0~1 또는 0~100
@@ -79,16 +84,16 @@ export default function DailyStatsPanel() {
 
   const { data, isLoading, error } = useStatsDailyQuery({ startTime, endTime });
 
-  // 시각화용 데이터 가공
+  // 시각화용 데이터 가공 (+ 화면 표시는 선택한 연도로 강제)
   const chartData = useMemo<DailyResponse[]>(() => {
     if (!Array.isArray(data)) return [];
     return data.map((d) => ({
-      date: d.date,
-      fraudRate: d.fraudRate,
-      fraudCount: d.fraudCount,
-      totalCount: d.totalCount,
+      date: forceDisplayYear(String(d.date ?? ''), year),
+      fraudRate: Number(d.fraudRate ?? 0),
+      fraudCount: Number(d.fraudCount ?? 0),
+      totalCount: Number(d.totalCount ?? 0),
     }));
-  }, [data]);
+  }, [data, year]);
 
   const empty = !isLoading && chartData.length === 0;
 
@@ -196,8 +201,19 @@ export default function DailyStatsPanel() {
                         : value
                   }
                 />
-                <Bar dataKey='totalCount' radius={[4, 4, 0, 0]} />
-                <Bar dataKey='fraudCount' radius={[4, 4, 0, 0]} />
+                {/* ✅ 색상 구분 */}
+                <Bar
+                  dataKey='totalCount'
+                  radius={[4, 4, 0, 0]}
+                  fill='#60A5FA'
+                />
+                {/* blue-400 */}
+                <Bar
+                  dataKey='fraudCount'
+                  radius={[4, 4, 0, 0]}
+                  fill='#F87171'
+                />
+                {/* red-400 */}
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -219,16 +235,14 @@ export default function DailyStatsPanel() {
                   domain={[0, 100]}
                   tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
                 />
-                <Tooltip
-                  formatter={(v, name) => [toPercent(Number(v)), '사기율']}
-                />
+                <Tooltip formatter={(v) => [toPercent(Number(v)), '사기율']} />
                 <Legend formatter={(v) => (v === 'fraudRate' ? '사기율' : v)} />
                 <Line
                   type='monotone'
                   dataKey='fraudRate'
                   strokeWidth={2}
                   dot={{ r: 2 }}
-                  // 표시용으로 0~1 입력도 자동 %로 보이게: tick/tooltip에서 처리했으니 원데이터 그대로 사용
+                  stroke='#FCD34D' // amber-300
                 />
               </LineChart>
             </ResponsiveContainer>
