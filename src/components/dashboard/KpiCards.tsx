@@ -43,7 +43,7 @@ function KpiCards({ kpi }: { kpi?: Kpi | null }) {
   const items = [
     { label: '전체 거래 수', value: fmtInt(kpi?.totalTransactions) },
     { label: '사기 탐지 건수', value: fmtInt(kpi?.fraudTransactions) },
-    { label: '사기율', value: fmtPct100(kpi?.fraudRate) },
+
     { label: '오탐 비율', value: fmtPct100(kpi?.falsePositiveRate) },
 
     { label: '시간당 처리량', value: fmtInt(kpi?.throughputPerHour) },

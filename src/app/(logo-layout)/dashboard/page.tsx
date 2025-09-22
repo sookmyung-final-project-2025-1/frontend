@@ -4,7 +4,6 @@ import DailyStatsPanel from '@/components/dashboard/DailyStatsPanel';
 import FraudTrend from '@/components/dashboard/FraudTrend';
 import KpiCards from '@/components/dashboard/KpiCards';
 import SystemHealth from '@/components/dashboard/SystemHealth';
-import TablePlaceholder from '@/components/dashboard/TablePlaceholder';
 import { useDashboardData } from '@/contexts/DashboardActionsContext';
 
 export default function DashboardPage() {
@@ -60,7 +59,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
-
+      {/* 
       <section className='grid grid-cols-1 gap-8'>
         <div className='col-span-1'>
           <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-8 relative'>
@@ -72,7 +71,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
     </div>
   );
 }
