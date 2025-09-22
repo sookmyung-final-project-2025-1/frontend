@@ -253,7 +253,6 @@ export default function TopBarContainer() {
         currentPosition={currentPosition}
         onPositionChange={onPositionChange}
         totalDuration={Math.floor(RANGE_MS[timeRange] / 3600_000)}
-        onRefresh={() => refetch()}
         loading={loading}
         streamMeta={meta}
       />

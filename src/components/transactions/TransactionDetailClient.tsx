@@ -12,7 +12,7 @@ export default function TransactionDetailClient({
 }) {
   const { data, isLoading, error } = useTransactionDetail(transactionId);
   const { data: fdata } = useFraudTransaction(transactionId);
-  console.log(fdata);
+  console.log(transactionId, fdata);
 
   const formatAmount = (amount?: number) =>
     typeof amount === 'number'

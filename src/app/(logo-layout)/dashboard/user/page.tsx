@@ -1,16 +1,11 @@
 // src/app/(logo-layout)/dashboard/reports/page.tsx
 'use client';
 
-import ReportDetailDrawer from '@/components/report/ReportDetailDrawer';
-import ReportFilters, {
-  ReportFiltersValue,
-} from '@/components/report/ReportFilters';
-import ReportsTable from '@/components/report/ReportsTable';
+import { ReportFiltersValue } from '@/components/report/ReportFilters';
 import ReportStatsCards from '@/components/report/ReportStatsCards';
 import { useGetPendingCount } from '@/hooks/queries/report/useGetPendingCount';
 import { useGetReport } from '@/hooks/queries/report/useGetReport';
 import { useGetReportStats } from '@/hooks/queries/report/useGetReportStats';
-import { AlertTriangle, Clock, Filter, RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 /** ===================== 시간 유틸 ===================== */
@@ -30,7 +25,7 @@ const toISOEndOfDay = (ymd: string) => {
 const DEFAULT_PAGEABLE = {
   page: 0,
   size: 10,
-  sort: ['reportedAt,desc'] as string[],
+  sort: [] as string[],
 };
 
 export default function ReportsPage() {
@@ -92,14 +87,6 @@ export default function ReportsPage() {
           <h1 className='text-2xl font-semibold'>신고 관리</h1>
           <p className='text-sm text-slate-400'>신고 접수/검토/우선순위 관리</p>
         </div>
-
-        <button
-          onClick={refresh}
-          className='inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700'
-        >
-          <RefreshCw className='w-4 h-4' />
-          새로고침
-        </button>
       </div>
 
       {/* 통계 카드 */}
@@ -109,65 +96,6 @@ export default function ReportsPage() {
         pendingCount={pendingQuery.data?.pendingCount ?? 0}
         pendingLoading={pendingQuery.isLoading}
       />
-
-      {/* 필터 */}
-      <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-4'>
-        <div className='flex items-center gap-2 mb-3 text-slate-300'>
-          <Filter className='w-4 h-4' />
-          <span className='text-sm'>필터</span>
-        </div>
-        <ReportFilters
-          value={filters}
-          onChange={applyFilters}
-          isLoading={listQuery.isFetching}
-        />
-      </div>
-
-      {/* 리스트 테이블 */}
-      <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-4'>
-        <div className='flex items-center justify-between mb-3'>
-          <div className='text-sm text-slate-400 flex items-center gap-2'>
-            <Clock className='w-4 h-4' />
-            {listQuery.isFetching ? '불러오는 중...' : '목록'}
-          </div>
-
-          <div className='text-sm text-slate-400'>
-            총{' '}
-            <span className='text-slate-200 font-medium'>
-              {listQuery.data?.totalElements?.toLocaleString() ?? 0}
-            </span>
-            건
-          </div>
-        </div>
-
-        <ReportsTable
-          rows={content}
-          loading={listQuery.isFetching && !listQuery.data}
-          page={pageable.page}
-          size={pageable.size}
-          totalPages={listQuery.data?.totalPages ?? 0}
-          onPageChange={(page) => setPageable((p) => ({ ...p, page }))}
-          onPageSizeChange={(size) =>
-            setPageable((p) => ({ ...p, page: 0, size }))
-          }
-          onRowClick={(id) => setActiveReportId(id)}
-        />
-      </div>
-
-      {/* 상세 Drawer */}
-      <ReportDetailDrawer
-        reportId={activeReportId}
-        onClose={() => setActiveReportId(null)}
-        onChanged={refresh}
-      />
-
-      {/* 에러 표시 */}
-      {(listQuery.error || statsQuery.error || pendingQuery.error) && (
-        <div className='bg-red-900/30 border border-red-700 rounded-lg p-3 text-red-200 text-sm flex items-center gap-2'>
-          <AlertTriangle className='w-4 h-4' />
-          일부 데이터를 불러오지 못했습니다.
-        </div>
-      )}
     </div>
   );
 }

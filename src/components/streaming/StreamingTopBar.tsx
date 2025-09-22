@@ -20,23 +20,39 @@ type Props = {
   currentPosition: number; // 0..100
   onPositionChange: (pct: number) => Promise<void> | void;
 
-  totalDuration: number; // hour 단위 표기용
-  onRefresh: () => void;
+  totalDuration: number; // hour 단위
   loading: boolean;
 
   streamMeta?: StreamMeta | null;
+
+  onRefresh?: () => void; // ↻
 };
 
 function useClientPlaceholder(virtualTime?: string) {
-  const [ph, setPh] = useState<string>(''); // SSR엔 빈 문자열로 렌더해서 hydration mismatch 방지
+  const [ph, setPh] = useState<string>(''); // SSR에서 공백, CSR에서 채움
   useEffect(() => {
     if (virtualTime && !Number.isNaN(Date.parse(virtualTime))) {
-      setPh(new Date(virtualTime).toISOString());
+      setPh(
+        new Date(virtualTime).toLocaleString('ko-KR', {
+          hour12: false,
+        })
+      );
     } else {
-      setPh(new Date().toISOString());
+      setPh(
+        new Date().toLocaleString('ko-KR', {
+          hour12: false,
+        })
+      );
     }
   }, [virtualTime]);
   return ph;
+}
+
+function formatDisplayTime(iso?: string) {
+  if (!iso) return '';
+  const parsed = Date.parse(iso);
+  if (!Number.isFinite(parsed)) return iso;
+  return new Date(parsed).toLocaleString('ko-KR', { hour12: false });
 }
 
 export default function StreamingTopBar({
@@ -53,14 +69,23 @@ export default function StreamingTopBar({
   currentPosition,
   onPositionChange,
   totalDuration,
-  onRefresh,
   loading,
   streamMeta,
+  onRefresh,
 }: Props) {
   const ph = useClientPlaceholder(virtualTime);
 
   const [seekInput, setSeekInput] = useState<string>('');
   const [speedInput, setSpeedInput] = useState<string>(String(speed));
+
+  const toIsoInput = (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    const normalized = trimmed.replace(' ', 'T');
+    const parsed = Date.parse(normalized);
+    if (!Number.isFinite(parsed)) return null;
+    return new Date(parsed).toISOString();
+  };
 
   useEffect(() => {
     setSpeedInput(String(speed));
@@ -75,12 +100,10 @@ export default function StreamingTopBar({
     if (e.key !== 'Enter') return;
     const s = (seekInput || '').trim();
     if (!s) return;
-    if (Number.isFinite(Date.parse(s))) {
-      await onSeek(new Date(s).toISOString());
-      setSeekInput('');
-    } else {
-      // 잘못된 입력은 무시
-    }
+    const iso = toIsoInput(s);
+    if (!iso) return;
+    await onSeek(iso);
+    setSeekInput('');
   };
 
   const handleSpeedApply = async () => {
@@ -144,7 +167,7 @@ export default function StreamingTopBar({
           <div className='flex items-center gap-2'>
             <label className='text-sm text-slate-300'>타임머신 시점</label>
             <input
-              placeholder={ph} // SSR에선 "" → 클라에서만 채움
+              placeholder={ph}
               suppressHydrationWarning
               value={seekInput}
               onChange={(e) => setSeekInput(e.target.value)}
@@ -155,14 +178,13 @@ export default function StreamingTopBar({
             <button
               onClick={async () => {
                 if (!seekInput) return;
-                if (!Number.isFinite(Date.parse(seekInput))) return;
-                await onSeek(new Date(seekInput).toISOString());
+                const iso = toIsoInput(seekInput);
+                if (!iso) return;
+                await onSeek(iso);
                 setSeekInput('');
               }}
               className='rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-500 disabled:opacity-50'
-              disabled={
-                loading || !seekInput || !Number.isFinite(Date.parse(seekInput))
-              }
+              disabled={loading || !seekInput || !toIsoInput(seekInput)}
             >
               이동
             </button>

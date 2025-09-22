@@ -68,7 +68,7 @@ export default function TransactionsTable({
               </tr>
             </thead>
 
-            <tbody className='divide-y divide-slate-800'>
+            <tbody className='divide-y'>
               {data.length === 0 ? (
                 <tr>
                   <td
@@ -83,11 +83,6 @@ export default function TransactionsTable({
                   <tr
                     key={String(t.id) ?? i}
                     className='hover:bg-slate-800/50 cursor-pointer'
-                    onClick={() =>
-                      router.push(
-                        `/dashboard/transactions/${t.externalTransactionId}`
-                      )
-                    }
                   >
                     <td className='px-6 py-4 whitespace-nowrap text-sm text-slate-100'>
                       {t.id}

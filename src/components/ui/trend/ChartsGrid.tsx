@@ -4,8 +4,6 @@ import { ChartRow } from '@/lib/faudTrendUtils';
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
   Legend,
   Line,
@@ -16,7 +14,15 @@ import {
   YAxis,
 } from 'recharts';
 
-export default function ChartsGrid({ chartData }: { chartData: ChartRow[] }) {
+type Props = {
+  chartData: ChartRow[];
+};
+
+function formatRate(value: number) {
+  return `${value.toFixed(1)}%`;
+}
+
+export default function ChartsGrid({ chartData }: Props) {
   return (
     <>
       {/* 라인 + 에어리어 */}
@@ -56,9 +62,7 @@ export default function ChartsGrid({ chartData }: { chartData: ChartRow[] }) {
         </div>
 
         <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-4'>
-          <h4 className='text-slate-300 font-medium mb-2'>
-            사기 거래량(에어리어)
-          </h4>
+          <h4 className='text-slate-300 font-medium mb-2'>전체 거래량</h4>
           <div className='h-80'>
             <ResponsiveContainer width='100%' height='100%'>
               <AreaChart data={chartData}>
@@ -68,7 +72,7 @@ export default function ChartsGrid({ chartData }: { chartData: ChartRow[] }) {
                 <Tooltip
                   formatter={(v: any) => [
                     Number(v).toLocaleString(),
-                    '사기 건수',
+                    '전체 건수',
                   ]}
                   contentStyle={{
                     backgroundColor: '#1e293b',
@@ -79,12 +83,12 @@ export default function ChartsGrid({ chartData }: { chartData: ChartRow[] }) {
                 />
                 <Area
                   type='monotone'
-                  dataKey='fraudCount'
-                  stroke='#8B5CF6'
-                  fill='#8B5CF6'
+                  dataKey='totalCount'
+                  stroke='#38BDF8'
+                  fill='#38BDF8'
                   strokeWidth={2}
                   fillOpacity={0.25}
-                  name='사기 건수'
+                  name='전체 건수'
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -94,18 +98,20 @@ export default function ChartsGrid({ chartData }: { chartData: ChartRow[] }) {
 
       {/* 바 차트 */}
       <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-4'>
-        <h4 className='text-slate-300 font-medium mb-2'>사기 거래량(막대)</h4>
+        <h4 className='text-slate-300 font-medium mb-2'>사기 비율 추이</h4>
         <div className='h-96'>
           <ResponsiveContainer width='100%' height='100%'>
-            <BarChart data={chartData}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray='3 3' stroke='#334155' />
               <XAxis dataKey='time' stroke='#64748b' fontSize={12} />
-              <YAxis allowDecimals={false} stroke='#64748b' fontSize={12} />
+              <YAxis
+                allowDecimals={false}
+                stroke='#64748b'
+                fontSize={12}
+                tickFormatter={formatRate}
+              />
               <Tooltip
-                formatter={(v: any) => [
-                  Number(v).toLocaleString(),
-                  '사기 건수',
-                ]}
+                formatter={(v: any) => [formatRate(Number(v)), '사기 비율']}
                 contentStyle={{
                   backgroundColor: '#1e293b',
                   border: '1px solid #334155',
@@ -113,13 +119,16 @@ export default function ChartsGrid({ chartData }: { chartData: ChartRow[] }) {
                   color: '#e2e8f0',
                 }}
               />
-              <Bar
-                dataKey='fraudCount'
-                fill='#3B82F6'
-                radius={[4, 4, 0, 0]}
-                name='사기 건수'
+              <Legend />
+              <Line
+                type='monotone'
+                dataKey='fraudRatePct'
+                stroke='#F97316'
+                strokeWidth={2}
+                dot={{ r: 3, fill: '#F97316' }}
+                name='사기 비율'
               />
-            </BarChart>
+            </LineChart>
           </ResponsiveContainer>
         </div>
       </div>

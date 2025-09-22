@@ -19,26 +19,7 @@ type WsPacket =
   | null
   | undefined;
 
-/* 날짜 연도만 현재로 시프트 (월/일/시분초 유지) */
-function shiftYearToNow(input: unknown): unknown {
-  if (typeof input !== 'string') return input;
-  const d = new Date(input);
-  if (Number.isNaN(d.getTime())) return input;
-  const now = new Date();
-  d.setFullYear(now.getFullYear());
-  return d.toISOString();
-}
-
-/* 단일 트랜잭션 시간 필드 시프트 */
-function normalizeAndShiftItem(t: any): any {
-  if (!t || typeof t !== 'object') return t;
-  const out: any = { ...t };
-  const TS_KEYS = ['time', 'timestamp', 'eventTime', 'createdAt', 'updatedAt'];
-  for (const k of TS_KEYS) if (out[k] != null) out[k] = shiftYearToNow(out[k]);
-  return out;
-}
-
-/* 패킷에서 거래 배열 추출 + 시프트 */
+/* 패킷에서 거래 배열 추출 */
 function extractTransactions(packet: WsPacket): any[] {
   let list: any[] = [];
   if (!packet) return list;
@@ -47,7 +28,7 @@ function extractTransactions(packet: WsPacket): any[] {
     list = (packet as any).transactions;
   else if (Array.isArray((packet as any).data)) list = (packet as any).data;
   else if (typeof packet === 'object') list = [packet];
-  return list.map(normalizeAndShiftItem);
+  return list;
 }
 
 export function useGetWebsocket() {
@@ -71,24 +52,55 @@ export function useGetWebsocket() {
     startedRef.current = true;
 
     const RAW_URL = (process.env.NEXT_PUBLIC_API_WS_URL || '').trim();
-    if (!RAW_URL) {
-      console.error('NEXT_PUBLIC_API_WS_URL is empty');
+    const proxyUrl =
+      (process.env.NEXT_PUBLIC_WS_PROXY_URL || '/proxy/ws').trim() ||
+      '/proxy/ws';
+
+    const isWsScheme = RAW_URL ? /^wss?:\/\//i.test(RAW_URL) : false;
+    const isHttpScheme = RAW_URL ? /^https?:\/\//i.test(RAW_URL) : false;
+
+    const forceSockJs = process.env.NEXT_PUBLIC_WS_FORCE_SOCKJS === '1';
+
+    let mode: 'native' | 'sockjs' = !forceSockJs && isWsScheme ? 'native' : 'sockjs';
+    let finalUrl = mode === 'native'
+      ? RAW_URL
+      : isHttpScheme
+        ? RAW_URL
+        : proxyUrl;
+
+    if (!RAW_URL && mode === 'sockjs') {
+      finalUrl = proxyUrl;
+    }
+
+    if (!finalUrl) {
+      console.error('WebSocket endpoint is missing');
       return;
     }
 
-    const isWsScheme = /^wss?:\/\//i.test(RAW_URL);
-    const isHttpScheme = /^https?:\/\//i.test(RAW_URL);
-    if (!isWsScheme && !isHttpScheme) {
-      console.error('Invalid WS URL scheme:', RAW_URL);
-      return;
+    if (mode === 'native' && !/^wss?:\/\//i.test(finalUrl)) {
+      console.error('Native WebSocket mode requires ws/wss URL:', finalUrl);
+      mode = 'sockjs';
+      finalUrl = proxyUrl;
     }
 
-    // 경로 보정 없이 그대로 사용 (ex. wss://host/ws)
-    const finalUrl = RAW_URL;
+    if (mode === 'sockjs' && !/^https?:\/\//i.test(finalUrl)) {
+      // SockJS는 http/https 혹은 현재 오리진 상대경로 사용
+      if (finalUrl.startsWith('/')) {
+        finalUrl = finalUrl; // 상대 경로 허용
+      } else if (isWsScheme) {
+        try {
+          const url = new URL(RAW_URL);
+          url.protocol = url.protocol === 'wss:' ? 'https:' : 'http:';
+          finalUrl = url.toString();
+        } catch {
+          finalUrl = proxyUrl;
+        }
+      } else {
+        finalUrl = proxyUrl;
+      }
+    }
 
-    console.log(
-      `[WS] URL=${finalUrl} MODE=${isWsScheme ? 'native' : 'sockjs'}`
-    );
+    console.log(`[WS] URL=${finalUrl} MODE=${mode}`);
     setConnectionStatus('connecting');
 
     const client = new Client({
@@ -113,35 +125,44 @@ export function useGetWebsocket() {
                 (parsed && (parsed as any).virtualTime) ||
                 (parsed && (parsed as any).timestamp) ||
                 undefined;
-              const vtShifted = vtRaw
-                ? (shiftYearToNow(vtRaw) as string)
-                : undefined;
+              setData((prev) => {
+                const prevTx = Array.isArray(prev.transactions)
+                  ? prev.transactions
+                  : [];
 
-              setData({
-                transactions: list,
-                transactionCount:
-                  (parsed &&
-                  typeof (parsed as any).transactionCount === 'number'
+                const nextTransactions = list.length
+                  ? [...prevTx, ...list].slice(-5000)
+                  : prevTx;
+
+                const parsedCount =
+                  parsed && typeof parsed === 'object'
                     ? (parsed as any).transactionCount
-                    : list.length) ?? 0,
-                virtualTime: vtShifted,
+                    : undefined;
+                const nextCount =
+                  typeof parsedCount === 'number'
+                    ? parsedCount
+                    : nextTransactions.length;
+
+                return {
+                  transactions: nextTransactions,
+                  transactionCount: nextCount,
+                  virtualTime: vtRaw ?? prev.virtualTime,
+                };
               });
 
-              if (process.env.NODE_ENV === 'development') {
-                console.log(
-                  '[WS RX] tx.len=',
-                  list.length,
-                  'virtualTime=',
-                  vtShifted ?? '(none)',
-                  'sample=',
-                  list[0]
-                );
-              }
+              console.log('[WS RX transactions]', {
+                raw,
+                parsed,
+                listLength: list.length,
+                firstItem: list[0],
+                virtualTime: vtRaw ?? null,
+              });
             } catch (e) {
               console.error('parse transaction failed:', e, msg.body);
             }
           }
         );
+        console.log('[WS] subscribed /topic/realtime-transactions');
 
         statusSubRef.current = client.subscribe(
           '/topic/streaming-status',
@@ -150,29 +171,15 @@ export function useGetWebsocket() {
               const raw = msg.body ?? '';
               const parsed = raw ? JSON.parse(raw) : null;
 
-              const shifted =
-                parsed && typeof parsed === 'object'
-                  ? (() => {
-                      const out: any = { ...parsed };
-                      const keys = [
-                        'currentVirtualTime',
-                        'currentTime',
-                        'updatedAt',
-                        'startTime',
-                        'endTime',
-                      ];
-                      for (const k of keys)
-                        if (out[k] != null) out[k] = shiftYearToNow(out[k]);
-                      return out;
-                    })()
-                  : parsed;
+              console.log('[WS RX status]', { raw, parsed });
 
-              setStatusData(shifted);
+              setStatusData(parsed);
             } catch (e) {
               console.error('parse status failed:', e, msg.body);
             }
           }
         );
+        console.log('[WS] subscribed /topic/streaming-status');
       },
       onStompError: (frame) => {
         console.error('STOMP error:', frame.headers['message']);
@@ -197,14 +204,14 @@ export function useGetWebsocket() {
       },
     });
 
-    if (isWsScheme) {
+    if (mode === 'native') {
       client.brokerURL = finalUrl; // wss://host/ws
     } else {
-      const sock = new SockJS(finalUrl, undefined, {
-        transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
-        timeout: 10000,
-      });
-      client.webSocketFactory = () => sock as unknown as WebSocket;
+      client.webSocketFactory = () =>
+        new SockJS(finalUrl, undefined, {
+          transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
+          timeout: 10000,
+        }) as unknown as WebSocket;
     }
 
     client.activate();

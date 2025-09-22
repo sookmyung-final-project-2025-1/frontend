@@ -61,8 +61,8 @@ export default function SystemHealth() {
 
   // 처리 시간 비교 데이터
   const processingTimeData = [
-    { name: 'Average', value: data.avgProcessingTime * 1000, fill: '#10b981' },
-    { name: 'P95', value: data.p95ProcessingTime * 1000, fill: '#f59e0b' },
+    { name: 'Average', value: data.avgProcessingTime, fill: '#10b981' },
+    { name: 'P95', value: data.p95ProcessingTime, fill: '#f59e0b' },
   ];
 
   // 시간대별 모의 데이터 (실제로는 API에서 받아올 데이터)
@@ -133,19 +133,6 @@ export default function SystemHealth() {
               <Clock className='w-6 h-6 text-green-500' />
             </div>
           </div>
-
-          {/* 평균 신뢰도 */}
-          <div className='bg-white rounded-lg shadow-sm p-6 border'>
-            <div className='flex items-center justify-between'>
-              <div>
-                <p className='text-sm font-medium text-gray-600'>평균 신뢰도</p>
-                <p className='text-2xl font-bold text-purple-600'>
-                  {(data.avgConfidenceScore * 100).toFixed(1)}%
-                </p>
-              </div>
-              <Activity className='w-6 h-6 text-purple-500' />
-            </div>
-          </div>
         </div>
 
         {/* 차트 섹션 */}
@@ -201,12 +188,7 @@ export default function SystemHealth() {
                     tickMargin={8}
                     tickFormatter={(v: number) => formatTime(v)}
                   />
-                  <Tooltip
-                    formatter={(value) => {
-                      const num = Number(value);
-                      return [`${num.toFixed(2)}ms`, '처리 시간'];
-                    }}
-                  />
+                  <Tooltip formatter={(value) => [formatTime(Number(value)), '처리 시간']} />
                   <Bar
                     dataKey='value'
                     radius={[2, 2, 0, 0]}
@@ -304,14 +286,6 @@ export default function SystemHealth() {
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-400'>
                     {formatTime(data.p95ProcessingTime)}
-                  </td>
-                </tr>
-                <tr>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200'>
-                    평균 신뢰도 점수
-                  </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-400'>
-                    {(data.avgConfidenceScore * 100).toFixed(2)}%
                   </td>
                 </tr>
                 <tr>

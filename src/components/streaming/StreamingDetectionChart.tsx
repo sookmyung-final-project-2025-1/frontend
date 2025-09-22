@@ -18,15 +18,17 @@ type Props = {
   data: DetectionResult[];
   threshold: number;
   playing?: boolean;
-  currentPosition?: number; // 0..100
+  currentPosition?: number;
   timeRange?: TimeRange;
   virtualTime?: string;
   streamMeta?: StreamMeta | null;
   connectionStatus?: 'connecting' | 'connected' | 'disconnected' | 'error';
+  slidingWindowSize?: number;
 };
 
 type ChartRow = {
-  time: string;
+  timeMs: number;
+  label: string;
   score: number;
   lgbm: number;
   xgb: number;
@@ -34,6 +36,16 @@ type ChartRow = {
   fraud?: number;
   confidence: number;
 };
+
+function clamp(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n));
+}
+function formatVirtualTime(s?: string) {
+  if (!s) return '';
+  const t = Date.parse(s);
+  if (!Number.isFinite(t)) return s;
+  return new Date(t).toLocaleString('ko-KR', { hour12: false });
+}
 
 export default function StreamingDetectionChart({
   data,
@@ -44,11 +56,11 @@ export default function StreamingDetectionChart({
   virtualTime,
   streamMeta,
   connectionStatus,
+  slidingWindowSize,
 }: Props) {
   const resolvedPlaying = streamMeta
     ? streamMeta.isStreaming && !streamMeta.isPaused
     : !!playing;
-
   const resolvedPosition =
     typeof streamMeta?.progress === 'number'
       ? clamp(streamMeta.progress * 100, 0, 100)
@@ -57,52 +69,80 @@ export default function StreamingDetectionChart({
   const speedMultiplier = streamMeta?.speedMultiplier ?? 1;
   const currentVirtualTime =
     streamMeta?.currentVirtualTime ?? virtualTime ?? '';
+  const isRealtimeSliding = resolvedPlaying;
 
   const [visibleData, setVisibleData] = useState<DetectionResult[]>([]);
   const [animationIndex, setAnimationIndex] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastDataRef = useRef<DetectionResult[]>([]);
+
+  const windowedData = useMemo(() => {
+    if (!slidingWindowSize || slidingWindowSize <= 0) return data;
+    return data.slice(Math.max(0, data.length - slidingWindowSize));
+  }, [data, slidingWindowSize]);
 
   useEffect(() => {
-    if (!data.length) {
+    const dataChanged = windowedData !== lastDataRef.current;
+    lastDataRef.current = windowedData;
+    if (!windowedData.length) {
       setVisibleData([]);
       setAnimationIndex(0);
       return;
     }
-    const endIndex = Math.floor((data.length * resolvedPosition) / 100);
-    const newVisible = data.slice(0, Math.max(1, endIndex));
-    setVisibleData(newVisible);
-    setAnimationIndex(newVisible.length);
-  }, [data, resolvedPosition]);
+    const targetLength = isRealtimeSliding
+      ? windowedData.length
+      : Math.max(1, Math.floor((windowedData.length * resolvedPosition) / 100));
+
+    if (dataChanged || animationIndex !== targetLength) {
+      const newVisible = windowedData.slice(0, targetLength);
+      setVisibleData(newVisible);
+      setAnimationIndex(targetLength);
+    }
+  }, [
+    windowedData,
+    resolvedPosition,
+    resolvedPlaying,
+    isRealtimeSliding,
+    animationIndex,
+  ]);
 
   useEffect(() => {
-    if (resolvedPlaying && data.length > 0) {
-      const base = 100;
-      const delay = Math.max(20, base / Math.max(0.1, speedMultiplier));
-      const i = setInterval(() => {
-        setAnimationIndex((prev) => (prev >= data.length ? prev : prev + 1));
-      }, delay);
-      intervalRef.current = i;
-      return () => {
-        clearInterval(i);
-        intervalRef.current = null;
-      };
-    }
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-  }, [resolvedPlaying, data.length, speedMultiplier]);
-
-  useEffect(() => {
-    if (data.length > 0 && animationIndex > 0) {
-      setVisibleData(data.slice(0, animationIndex));
+    if (!isRealtimeSliding && resolvedPlaying && windowedData.length > 0) {
+      const baseDelay = 100;
+      const delay = Math.max(20, baseDelay / Math.max(0.1, speedMultiplier));
+      const interval = setInterval(() => {
+        setAnimationIndex((prev) => {
+          const cappedLen = windowedData.length;
+          if (prev >= cappedLen) return prev;
+          const next = prev + 1;
+          setVisibleData(windowedData.slice(0, Math.min(next, cappedLen)));
+          return next;
+        });
+      }, delay);
+      intervalRef.current = interval;
+      return () => {
+        clearInterval(interval);
+        intervalRef.current = null;
+      };
     }
-  }, [animationIndex, data]);
+  }, [
+    resolvedPlaying,
+    windowedData.length,
+    speedMultiplier,
+    windowedData,
+    isRealtimeSliding,
+  ]);
 
-  const chartData = useMemo<ChartRow[]>(
-    () =>
-      visibleData.map((item) => ({
-        time: new Date(item.timestamp).toLocaleTimeString('ko-KR', {
+  const chartData = useMemo<ChartRow[]>(() => {
+    return visibleData.map((item) => {
+      const ms = Date.parse(item.timestamp);
+      return {
+        timeMs: Number.isFinite(ms) ? ms : Date.now(),
+        label: new Date(item.timestamp).toLocaleTimeString('ko-KR', {
           hour12: false,
         }),
         score: item.score,
@@ -111,15 +151,14 @@ export default function StreamingDetectionChart({
         cat: item.models.cat,
         fraud: item.prediction === 'fraud' ? item.score : undefined,
         confidence: item.confidence,
-      })),
-    [visibleData]
-  );
+      };
+    });
+  }, [visibleData]);
 
   const showBadge = connectionStatus !== 'connected';
 
   return (
     <div className='relative rounded-xl border border-slate-700 bg-slate-900 p-4'>
-      {/* 상태 배지: WebSocket 연결 중/끊김/에러일 때만 노출 */}
       {showBadge && (
         <div className='absolute right-4 top-4 z-10 rounded-full border border-yellow-600/40 bg-yellow-900/30 px-3 py-1 text-xs text-yellow-200'>
           {connectionStatus === 'connecting'
@@ -135,6 +174,9 @@ export default function StreamingDetectionChart({
         <div className='text-sm text-slate-400'>
           {visibleData.length} / {data.length} 포인트 ·{' '}
           <span>{formatVirtualTime(currentVirtualTime)}</span>
+          {resolvedPlaying && (
+            <span className='ml-2 text-emerald-400'>▶ {speedMultiplier}x</span>
+          )}
         </div>
       </div>
 
@@ -144,40 +186,86 @@ export default function StreamingDetectionChart({
             data={chartData}
             margin={{ top: 5, right: 16, left: 0, bottom: 0 }}
           >
-            <CartesianGrid strokeDasharray='3 3' />
-            <XAxis dataKey='time' tick={{ fontSize: 12 }} />
-            <YAxis domain={[0, 'auto']} tick={{ fontSize: 12 }} />
-            <Tooltip />
+            <CartesianGrid strokeDasharray='3 3' stroke='#374151' />
+            <XAxis
+              type='number'
+              dataKey='timeMs'
+              domain={['dataMin', 'dataMax']}
+              tick={{ fontSize: 12, fill: '#9CA3AF' }}
+              stroke='#6B7280'
+              tickFormatter={(value) =>
+                new Date(value).toLocaleTimeString('ko-KR', { hour12: false })
+              }
+            />
+            <YAxis
+              domain={[0, 'auto']}
+              tick={{ fontSize: 12, fill: '#9CA3AF' }}
+              stroke='#6B7280'
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#1F2937',
+                border: '1px solid #374151',
+                borderRadius: '8px',
+              }}
+              labelFormatter={(value) =>
+                new Date(value as number).toLocaleTimeString('ko-KR', {
+                  hour12: false,
+                })
+              }
+            />
             <Legend />
             <ReferenceLine
               y={threshold}
-              strokeOpacity={0.5}
+              stroke='#EF4444'
+              strokeOpacity={0.7}
               strokeDasharray='5 5'
-              label={`Threshold ${threshold}`}
+              label={{ value: `Threshold ${threshold}`, position: 'right' }}
             />
-            <Line type='monotone' dataKey='score' dot={false} name='score' />
-            <Line type='monotone' dataKey='lgbm' dot={false} name='lgbm' />
-            <Line type='monotone' dataKey='xgb' dot={false} name='xgb' />
-            <Line type='monotone' dataKey='cat' dot={false} name='cat' />
+            <Line
+              type='monotone'
+              dataKey='score'
+              stroke='#3B82F6'
+              dot={false}
+              name='Score'
+              strokeWidth={2}
+            />
+            <Line
+              type='monotone'
+              dataKey='lgbm'
+              stroke='#10B981'
+              dot={false}
+              name='LGBM'
+              strokeWidth={1}
+            />
+            <Line
+              type='monotone'
+              dataKey='xgb'
+              stroke='#F59E0B'
+              dot={false}
+              name='XGB'
+              strokeWidth={1}
+            />
+            <Line
+              type='monotone'
+              dataKey='cat'
+              stroke='#8B5CF6'
+              dot={false}
+              name='CatBoost'
+              strokeWidth={1}
+            />
             <Line
               type='linear'
               dataKey='fraud'
-              name='fraudOnly'
+              name='Fraud Detection'
+              stroke='#EF4444'
+              strokeWidth={3}
               strokeDasharray='4 2'
+              dot={{ fill: '#EF4444', r: 3 }}
             />
           </LineChart>
         </ResponsiveContainer>
       </div>
     </div>
   );
-}
-
-function clamp(n: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, n));
-}
-function formatVirtualTime(s?: string) {
-  if (!s) return '';
-  const t = Date.parse(s);
-  if (!Number.isFinite(t)) return s;
-  return new Date(t).toLocaleString('ko-KR', { hour12: false });
 }

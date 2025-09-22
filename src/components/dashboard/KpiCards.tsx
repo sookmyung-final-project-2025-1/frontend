@@ -43,13 +43,8 @@ function KpiCards({ kpi }: { kpi?: Kpi | null }) {
   const items = [
     { label: '전체 거래 수', value: fmtInt(kpi?.totalTransactions) },
     { label: '사기 탐지 건수', value: fmtInt(kpi?.fraudTransactions) },
-    { label: '사기율', value: fmtPct100(kpi?.fraudRate) },
-    { label: '오탐 비율', value: fmtPct100(kpi?.falsePositiveRate) },
 
-    { label: '평균 신뢰도', value: fmtPct01(kpi?.averageConfidenceScore) },
-    { label: '평균 처리시간', value: fmtMs(kpi?.averageProcessingTimeMs) },
-    { label: '지연시간 p50', value: fmtMs(kpi?.latencyP50Ms) },
-    { label: '지연시간 p95', value: fmtMs(kpi?.latencyP95Ms) },
+    { label: '오탐 비율', value: fmtPct100(kpi?.falsePositiveRate) },
 
     { label: '시간당 처리량', value: fmtInt(kpi?.throughputPerHour) },
     { label: '평균 거래 금액', value: fmtKRW(kpi?.averageTransactionAmount) },
