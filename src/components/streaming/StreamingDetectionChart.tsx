@@ -22,7 +22,7 @@ type Props = {
   timeRange?: TimeRange;
   virtualTime?: string;
   streamMeta?: StreamMeta | null;
-  online?: boolean; // ← 추가: WS 연결 상태
+  connectionStatus?: 'connecting' | 'connected' | 'disconnected' | 'error';
 };
 
 type ChartRow = {
@@ -43,7 +43,7 @@ export default function StreamingDetectionChart({
   timeRange,
   virtualTime,
   streamMeta,
-  online,
+  connectionStatus,
 }: Props) {
   const resolvedPlaying = streamMeta
     ? streamMeta.isStreaming && !streamMeta.isPaused
@@ -115,12 +115,18 @@ export default function StreamingDetectionChart({
     [visibleData]
   );
 
+  const showBadge = connectionStatus !== 'connected';
+
   return (
     <div className='relative rounded-xl border border-slate-700 bg-slate-900 p-4'>
-      {/* 상태 배지: WS 연결 중일 때만 노출 (요청/데이터 수신 중에는 안 뜸) */}
-      {!online && (
+      {/* 상태 배지: WebSocket 연결 중/끊김/에러일 때만 노출 */}
+      {showBadge && (
         <div className='absolute right-4 top-4 z-10 rounded-full border border-yellow-600/40 bg-yellow-900/30 px-3 py-1 text-xs text-yellow-200'>
-          실시간 연동 중…
+          {connectionStatus === 'connecting'
+            ? '실시간 연동 중…'
+            : connectionStatus === 'error'
+              ? '연결 오류'
+              : '연결 대기'}
         </div>
       )}
 
@@ -149,7 +155,6 @@ export default function StreamingDetectionChart({
               strokeDasharray='5 5'
               label={`Threshold ${threshold}`}
             />
-
             <Line type='monotone' dataKey='score' dot={false} name='score' />
             <Line type='monotone' dataKey='lgbm' dot={false} name='lgbm' />
             <Line type='monotone' dataKey='xgb' dot={false} name='xgb' />

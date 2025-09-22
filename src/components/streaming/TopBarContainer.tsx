@@ -14,9 +14,8 @@ import { useStartStreamingRealtime } from '@/hooks/queries/streaming/useStartStr
 import { useStopStreaming } from '@/hooks/queries/streaming/useStopStreaming';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DetectionResult } from './StreamingDashboard';
 import StreamingDetectionChart from './StreamingDetectionChart';
-import { StreamMeta } from './types';
+import { DetectionResult, StreamMeta } from './types';
 
 const RANGE_MS = {
   '24h': 24 * 3600_000,

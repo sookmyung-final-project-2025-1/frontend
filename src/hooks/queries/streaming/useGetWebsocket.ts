@@ -83,7 +83,7 @@ export function useGetWebsocket() {
       return;
     }
 
-    // ⚠️ 경로 보정 제거: 서버가 wss://.../ws 로 직접 받는 환경 고려
+    // 경로 보정 없이 그대로 사용 (ex. wss://host/ws)
     const finalUrl = RAW_URL;
 
     console.log(
@@ -127,14 +127,16 @@ export function useGetWebsocket() {
                 virtualTime: vtShifted,
               });
 
-              console.log(
-                '[WS RX] tx.len=',
-                list.length,
-                'virtualTime=',
-                vtShifted ?? '(none)',
-                'sample=',
-                list[0]
-              );
+              if (process.env.NODE_ENV === 'development') {
+                console.log(
+                  '[WS RX] tx.len=',
+                  list.length,
+                  'virtualTime=',
+                  vtShifted ?? '(none)',
+                  'sample=',
+                  list[0]
+                );
+              }
             } catch (e) {
               console.error('parse transaction failed:', e, msg.body);
             }
@@ -196,7 +198,7 @@ export function useGetWebsocket() {
     });
 
     if (isWsScheme) {
-      client.brokerURL = finalUrl; // 예: wss://host/ws (보정 없이 사용)
+      client.brokerURL = finalUrl; // wss://host/ws
     } else {
       const sock = new SockJS(finalUrl, undefined, {
         transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
