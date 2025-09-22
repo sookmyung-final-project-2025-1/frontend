@@ -1,3 +1,4 @@
+// src/app/(logo-layout)/dashboard/transactions/page.tsx (경로는 네 구조에 맞게)
 'use client';
 
 import PageSizeSelector from '@/components/transactions/PageSizeSelector';
@@ -5,10 +6,9 @@ import TransactionFilters from '@/components/transactions/TransactionFilters';
 import TransactionsTable from '@/components/transactions/TransactionsTable';
 import { useAllTransaction } from '@/hooks/queries/transaction/useAllTransaction';
 import { TransactionRequestType } from '@/types/transaction.schema';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 export default function TransactionPage() {
-  // 필터 상태
   const [filters, setFilters] = useState<TransactionRequestType>({
     userId: '',
     merchant: '',
@@ -18,7 +18,8 @@ export default function TransactionPage() {
     isFraud: undefined,
     startTime: '',
     endTime: '',
-    pageable: { page: 1, size: 10, sort: ['userId'] },
+    // ✅ 기본 정렬은 없으므로 빈 배열
+    pageable: { page: 0, size: 10, sort: [] },
   });
 
   const {
@@ -27,7 +28,6 @@ export default function TransactionPage() {
     error,
   } = useAllTransaction(filters);
 
-  // 공통 핸들러
   const handleFilterChange = (
     key: keyof TransactionRequestType,
     value: any
@@ -35,18 +35,28 @@ export default function TransactionPage() {
     setFilters((prev) => ({
       ...prev,
       [key]: value,
-      pageable: { ...prev.pageable, page: 0 }, // 필터 변경 시 첫 페이지
+      pageable: { ...prev.pageable!, page: 0 },
     }));
   };
+
+  const handlePageableChange = useCallback(
+    (
+      updater: (
+        p: NonNullable<TransactionRequestType['pageable']>
+      ) => NonNullable<TransactionRequestType['pageable']>
+    ) => {
+      setFilters((prev) => ({
+        ...prev,
+        pageable: updater(prev.pageable ?? { page: 0, size: 10, sort: [] }),
+      }));
+    },
+    []
+  );
 
   const handlePageSizeChange = (size: number) => {
-    setFilters((prev) => ({
-      ...prev,
-      pageable: { ...prev.pageable, page: 0, size },
-    }));
+    handlePageableChange((p) => ({ ...p, page: 0, size }));
   };
 
-  // 포맷터
   const formatAmount = (amount: number) =>
     new Intl.NumberFormat('ko-KR', {
       style: 'currency',
@@ -59,7 +69,6 @@ export default function TransactionPage() {
     return Number.isNaN(d.getTime()) ? '-' : d.toLocaleString('ko-KR');
   };
 
-  // ✅ 응답 정규화: 배열/페이지 객체 모두 지원
   const transactions: any[] = Array.isArray(transactionData)
     ? transactionData
     : ((transactionData as any)?.content ?? []);
@@ -75,7 +84,6 @@ export default function TransactionPage() {
         <div className='text-sm text-slate-400'>총 {totalElements}건</div>
       </div>
 
-      {/* 필터 */}
       <TransactionFilters
         filters={filters}
         onChange={handleFilterChange}
@@ -89,15 +97,17 @@ export default function TransactionPage() {
             isFraud: undefined,
             startTime: '',
             endTime: '',
-            pageable: { page: 0, size: 10, sort: ['createdAt,desc'] },
+            pageable: { page: 0, size: 10, sort: [] }, // ✅ 리셋도 빈 배열
           })
         }
+        pageable={filters.pageable!}
+        onPageableChange={handlePageableChange}
+        showPreview={false} // 필요 시 true
       />
 
-      {/* 페이지 사이즈 + 테이블 (이 영역만 로딩/에러 표시) */}
       <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-8'>
         <PageSizeSelector
-          size={filters.pageable.size}
+          size={filters.pageable?.size ?? 10}
           onChange={handlePageSizeChange}
         />
 
@@ -111,8 +121,6 @@ export default function TransactionPage() {
           }
         />
       </div>
-
-      {/* 페이지네이션은 별도 필요 시 추가 */}
     </div>
   );
 }

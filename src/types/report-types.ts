@@ -54,7 +54,7 @@ export type ReportDetail = ReportItem;
 export type PendingCounts = {
   pendingCount: number; // 대기중
   underReviewCount: number; // 검토중
-  totalAwaitingAction: number; // 처리 대기 총합
+  totalUnprocessed: number; // 처리 대기 총합
 };
 
 export type ReportStats = {

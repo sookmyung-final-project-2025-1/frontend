@@ -21,7 +21,7 @@ export default function DashboardPage() {
       )}
 
       <section>
-        <KpiCards kpi={kpi ?? null} />
+        <KpiCards />
       </section>
 
       <section className='grid grid-cols-1 gap-8'>

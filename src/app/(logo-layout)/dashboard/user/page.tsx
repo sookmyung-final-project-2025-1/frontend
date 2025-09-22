@@ -1,3 +1,4 @@
+// src/app/(logo-layout)/dashboard/reports/page.tsx
 'use client';
 
 import ReportDetailDrawer from '@/components/report/ReportDetailDrawer';
@@ -12,11 +13,24 @@ import { useGetReportStats } from '@/hooks/queries/report/useGetReportStats';
 import { AlertTriangle, Clock, Filter, RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+/** ===================== 시간 유틸 ===================== */
+// 'YYYY-MM-DD' → 로컬 기준 자정/종료시각을 UTC ISO로 변환
+const toISOStartOfDay = (ymd: string) => {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const dt = new Date(y, (m || 1) - 1, d || 1, 0, 0, 0, 0); // local
+  return dt.toISOString(); // UTC ISO → 전역 useApi가 1970 시프트
+};
+const toISOEndOfDay = (ymd: string) => {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const dt = new Date(y, (m || 1) - 1, d || 1, 23, 59, 59, 999); // local inclusive
+  return dt.toISOString();
+};
+
 // 페이지 기본 페이지네이션
 const DEFAULT_PAGEABLE = {
   page: 0,
   size: 10,
-  sort: ['reportedAt,desc'],
+  sort: ['reportedAt,desc'] as string[],
 };
 
 export default function ReportsPage() {
@@ -34,12 +48,21 @@ export default function ReportsPage() {
   // 상세 Drawer 상태
   const [activeReportId, setActiveReportId] = useState<number | null>(null);
 
+  // ✅ ISO로 변환 (서버 요구사항 충족)
+  const startISO = filters.startDate?.trim()
+    ? toISOStartOfDay(filters.startDate.trim())
+    : undefined;
+  const endISO = filters.endDate?.trim()
+    ? toISOEndOfDay(filters.endDate.trim())
+    : undefined;
+
   // 리스트 데이터
   const listQuery = useGetReport({
     status: filters.status,
     reportedBy: filters.reportedBy || undefined,
-    startDate: filters.startDate || undefined,
-    endDate: filters.endDate || undefined,
+    // ⬇️ 형식 문제 해결: ISO(UTC)로 전달
+    startDate: startISO,
+    endDate: endISO,
     pageable,
   });
 
@@ -100,7 +123,7 @@ export default function ReportsPage() {
         />
       </div>
 
-      {/* 리스트 테이블 (로딩 중에도 상단은 유지, 표 영역만 상태 표시) */}
+      {/* 리스트 테이블 */}
       <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-4'>
         <div className='flex items-center justify-between mb-3'>
           <div className='text-sm text-slate-400 flex items-center gap-2'>
@@ -138,7 +161,7 @@ export default function ReportsPage() {
         onChanged={refresh}
       />
 
-      {/* 에러 표시(최소화) */}
+      {/* 에러 표시 */}
       {(listQuery.error || statsQuery.error || pendingQuery.error) && (
         <div className='bg-red-900/30 border border-red-700 rounded-lg p-3 text-red-200 text-sm flex items-center gap-2'>
           <AlertTriangle className='w-4 h-4' />

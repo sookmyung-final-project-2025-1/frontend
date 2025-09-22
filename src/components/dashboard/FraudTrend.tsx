@@ -9,7 +9,7 @@ export default function FraudTrend() {
   // 컨트롤: 상시 표시
   const todayStr = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
-  const [interval, setInterval] = useState<FraudTrendInterval>('daily');
+  const [interval, setInterval] = useState<FraudTrendInterval>('hourly');
 
   // interval에 맞는 범위 계산 (렌더마다 동일 입력일 때 메모)
   const { startTime, endTime } = useMemo(

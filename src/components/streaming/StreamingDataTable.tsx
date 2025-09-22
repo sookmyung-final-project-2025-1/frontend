@@ -8,8 +8,8 @@ export default function StreamingDataTable({
   data: DetectionResult[];
 }) {
   return (
-    <div className='bg-slate-900 border border-slate-700 rounded-xl p-4'>
-      <h4 className='font-semibold mb-3'>최근 거래 (표)</h4>
+    <div className='rounded-xl border border-slate-700 bg-slate-900 p-4'>
+      <h4 className='mb-3 font-semibold'>최근 거래 (표)</h4>
       <div className='overflow-x-auto'>
         <table className='min-w-full text-sm'>
           <thead className='text-left text-slate-300'>
@@ -39,11 +39,7 @@ export default function StreamingDataTable({
                   </td>
                   <td className='py-2 pr-4'>
                     <span
-                      className={`px-2 py-0.5 rounded text-white ${
-                        r.prediction === 'fraud'
-                          ? 'bg-red-600'
-                          : 'bg-emerald-600'
-                      }`}
+                      className={`rounded px-2 py-0.5 text-white ${r.prediction === 'fraud' ? 'bg-red-600' : 'bg-emerald-600'}`}
                     >
                       {r.prediction === 'fraud' ? '사기' : '정상'}
                     </span>

@@ -15,27 +15,78 @@ import { useStartStreamingRealtime } from '@/hooks/queries/streaming/useStartStr
 import { useStopStreaming } from '@/hooks/queries/streaming/useStopStreaming';
 import StreamingDataTable from './StreamingDataTable';
 
-export type TimeRange = '24h' | '7d' | '30d';
+import type { DetectionResult, TimeRange } from './types';
+
 export const RANGE_MS: Record<TimeRange, number> = {
   '24h': 24 * 3600_000,
   '7d': 7 * 24 * 3600_000,
   '30d': 30 * 24 * 3600_000,
 };
 
-export type DetectionResult = {
-  timestamp: string;
-  score: number;
-  prediction: 'fraud' | 'normal';
-  confidence: number;
-  models: { lgbm: number; xgb: number; cat: number };
-};
+// ---------- 유틸 ----------
+function clamp(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n));
+}
+function toIsoStringSafe(input: unknown): string {
+  if (typeof input === 'number') {
+    const d = new Date(input);
+    return Number.isFinite(d.getTime())
+      ? d.toISOString()
+      : new Date().toISOString();
+  }
+  if (typeof input === 'string') {
+    const t = Date.parse(input);
+    if (Number.isFinite(t)) return new Date(t).toISOString();
+    return new Date().toISOString();
+  }
+  return new Date().toISOString();
+}
+function pctToIso(pct: number, range: TimeRange, refIso?: string) {
+  const clamped = clamp(pct, 0, 100);
+  const span = RANGE_MS[range];
+  const end = refIso ? Date.parse(refIso) : Date.now();
+  const endMs = Number.isFinite(end) ? end : Date.now();
+  const start = endMs - span;
+  return new Date(start + (span * clamped) / 100).toISOString();
+}
+function buildVisibleData(
+  all: DetectionResult[],
+  range: TimeRange,
+  pct: number,
+  refIso?: string
+) {
+  if (!all?.length) return [];
+  const sorted = [...all].sort(
+    (a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp)
+  );
 
+  const lastTs = Date.parse(sorted[sorted.length - 1].timestamp);
+  const fallbackEnd = Number.isFinite(lastTs) ? lastTs : Date.now();
+  const end = refIso ? Date.parse(refIso) : fallbackEnd;
+  const endMs = Number.isFinite(end) ? end : fallbackEnd;
+  const startMs = endMs - RANGE_MS[range];
+
+  const inRange = sorted.filter((d) => {
+    const t = Date.parse(d.timestamp);
+    return Number.isFinite(t) && t >= startMs && t <= endMs;
+  });
+
+  const pos = Math.min(100, Math.max(0, pct));
+  const base = inRange.length ? inRange : sorted;
+  const endIdx = Math.floor((pos * base.length) / 100);
+  return base.slice(0, Math.max(1, endIdx));
+}
+
+// ---------- 컴포넌트 ----------
 export default function StreamingDashboard() {
-  // 1) 상태/WS
   const { data: status, refetch, isFetching } = useGetStreamingStatus();
-  const { transactions, connectionStatus } = useGetWebsocket(); // WS에서 들어오는 원천 데이터
+  const {
+    transactions,
+    statusData: wsStatusData,
+    connectionStatus,
+    virtualTime: wsVirtualTime,
+  } = useGetWebsocket();
 
-  // 2) 제어 훅
   const startRealtime = useStartStreamingRealtime();
   const startTimemachine = useSetStreamingTimemachine();
   const jump = useJumpStreaming();
@@ -44,158 +95,210 @@ export default function StreamingDashboard() {
   const stop = useStopStreaming();
   const changeSpeed = useChangeSpeed();
 
-  // 3) UI 상태
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [manualPosition, setManualPosition] = useState<number | null>(null);
 
-  // 4) 진행 위치(%): 서버 progress 우선, 없으면 virtualTime로 추정
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDraggingRef = useRef(false);
+
+  useEffect(() => {
+    const handleMouseDown = () => (isDraggingRef.current = true);
+    const handleMouseUp = () => (isDraggingRef.current = false);
+    window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  const referenceIso = useMemo<string>(() => {
+    const s: any = wsStatusData || status || {};
+    return (
+      s.currentVirtualTime ??
+      s.currentTime ??
+      wsVirtualTime ??
+      new Date().toISOString()
+    );
+  }, [wsStatusData, status, wsVirtualTime]);
+
   const currentPosition = useMemo(() => {
-    const s: any = status || {};
+    if (manualPosition !== null) return clamp(manualPosition, 0, 100);
+
+    const s: any = wsStatusData || status || {};
     if (typeof s.progress === 'number') return clamp(s.progress * 100, 0, 100);
 
-    const end = Date.now();
-    const span = RANGE_MS[timeRange];
-    const start = end - span;
-    const vt = Date.parse(s.currentVirtualTime ?? s.currentTime ?? '');
-    if (Number.isFinite(vt)) return clamp(((vt - start) / span) * 100, 0, 100);
-    return 100;
-  }, [status, timeRange]);
+    const currentTime = s.currentVirtualTime ?? s.currentTime ?? wsVirtualTime;
+    if (currentTime) {
+      const end = Date.parse(currentTime);
+      const endMs = Number.isFinite(end) ? end : Date.now();
+      const span = RANGE_MS[timeRange];
+      const start = endMs - span;
+      return clamp(((endMs - start) / span) * 100, 0, 100);
+    }
+    return 0;
+  }, [manualPosition, wsStatusData, status, timeRange, wsVirtualTime]);
 
-  // 5) 파생 상태
-  const playing = !!(status as any)?.isStreaming && !(status as any)?.isPaused;
-  const speed = (status as any)?.speedMultiplier ?? (status as any)?.speed ?? 1;
-  const virtualTime =
-    (status as any)?.currentVirtualTime ?? (status as any)?.currentTime ?? '';
+  const playing = useMemo(() => {
+    const s: any = status || {};
+    return !!s.isStreaming && !s.isPaused;
+  }, [status]);
+
+  const speed = useMemo(() => {
+    const s: any = status || {};
+    return s.speedMultiplier ?? s.speed ?? 1;
+  }, [status]);
+
+  const virtualTime = useMemo(() => {
+    const s: any = status || {};
+    return s.currentVirtualTime ?? s.currentTime ?? wsVirtualTime ?? '';
+  }, [status, wsVirtualTime]);
+
   const online = connectionStatus === 'connected';
 
-  // 6) WS → normalized
-  const normalizedData = useMemo<DetectionResult[]>(
-    () =>
-      (transactions ?? []).map((t: any) => ({
-        timestamp: t.time ?? t.timestamp ?? new Date().toISOString(),
-        score: Number(t.score ?? t.amount ?? 0),
-        prediction: t.isFraud ? 'fraud' : 'normal',
-        confidence: Number(t.confidence ?? 0.8),
+  // WS 연결되면 1회 자동 Realtime 시작
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (autoStartedRef.current) return;
+    if (!online) return;
+
+    const s: any = status || {};
+    if (s?.isStreaming && !s?.isPaused) {
+      autoStartedRef.current = true;
+      return;
+    }
+    autoStartedRef.current = true;
+    startRealtime.mutate();
+  }, [online, status, startRealtime]);
+
+  const normalizedData = useMemo<DetectionResult[]>(() => {
+    const rows = (transactions ?? []).map((t: any) => {
+      const pred: DetectionResult['prediction'] = t.isFraud
+        ? 'fraud'
+        : 'normal';
+      return {
+        timestamp: toIsoStringSafe(
+          t.time ?? t.timestamp ?? t.eventTime ?? t.createdAt ?? Date.now()
+        ),
+        score: Number(
+          t.score ?? t.amount ?? t.probability ?? t.fraudScore ?? t.risk ?? 0
+        ),
+        prediction: pred,
+        confidence: Number(t.confidence ?? t.conf ?? t.prob ?? t.p ?? 0.8),
         models: {
-          lgbm: Number(t.models?.lgbm ?? 0.33),
-          xgb: Number(t.models?.xgb ?? 0.33),
-          cat: Number(t.models?.cat ?? 0.34),
+          lgbm: Number(
+            t.models?.lgbm ?? t.models?.lgb ?? t.models?.lightgbm ?? 0.33
+          ),
+          xgb: Number(t.models?.xgb ?? t.models?.xgboost ?? 0.33),
+          cat: Number(t.models?.cat ?? t.models?.catboost ?? 0.34),
         },
-      })),
-    [transactions]
-  );
+      };
+    });
+    rows.sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+    return rows;
+  }, [transactions]);
 
-  // 7) 화면에 “보이는” 데이터(기간 필터 + % 잘라내기)
-  const visibleData = useMemo<DetectionResult[]>(
-    () => buildVisibleData(normalizedData, timeRange, currentPosition),
-    [normalizedData, timeRange, currentPosition]
-  );
+  const visibleData = useMemo<DetectionResult[]>(() => {
+    return buildVisibleData(
+      normalizedData,
+      timeRange,
+      currentPosition,
+      referenceIso
+    );
+  }, [normalizedData, timeRange, currentPosition, referenceIso]);
 
-  // 8) 액션
-  // helpers가 이미 아래에 있어요: clamp, pctToIso 등
-  // onPlay만 아래 코드로 바꿔주세요.
+  const safeApiCall = async (apiCall: () => Promise<any>) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      await apiCall();
+      await refetch();
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const onPlay = async () => {
     const s: any = status || {};
     const isPaused = !!s.isPaused;
     const isStreaming = !!s.isStreaming;
+    const mode = s?.mode;
 
-    // 1) 일시정지 → 재개
     if (isStreaming && isPaused) {
-      await resume.mutateAsync();
-      await refetch();
-      return;
-    }
-
-    // 2) "거의 끝(현재에 매우 근접)" 여부 판단
-    const nearEnd = currentPosition >= 99.9;
-
-    if (nearEnd) {
-      // 2-a) 현재 시점 → 실시간 모드
-      await startRealtime.mutateAsync();
+      await safeApiCall(() => resume.mutateAsync());
+    } else if (!isStreaming) {
+      if (currentPosition >= 99.9) {
+        await safeApiCall(() => startRealtime.mutateAsync());
+      } else {
+        const targetTime = pctToIso(currentPosition, timeRange, referenceIso);
+        await safeApiCall(() =>
+          startTimemachine.mutateAsync({
+            startTime: targetTime,
+            speedMultiplier: speed,
+          })
+        );
+      }
     } else {
-      // 2-b) 과거 시점 → 타임머신 모드
-      // startTime은 우선 서버가 알아온 virtualTime, 없으면 슬라이더 기준으로 계산
-      const candidateIso =
-        (s.currentVirtualTime ?? s.currentTime) &&
-        Number.isFinite(Date.parse(s.currentVirtualTime ?? s.currentTime))
-          ? (s.currentVirtualTime ?? s.currentTime)
-          : pctToIso(currentPosition, timeRange);
-
-      await startTimemachine.mutateAsync({
-        startTime: candidateIso,
-        speedMultiplier: speed,
-      });
+      if (mode === 'TIMEMACHINE' || mode === 'REALTIME') return;
     }
-
-    await refetch();
   };
 
   const onPause = async () => {
-    await pause.mutateAsync();
-    await refetch();
+    await safeApiCall(() => pause.mutateAsync());
   };
-  const onSpeedChange = async (v: number) => {
-    await changeSpeed.mutateAsync(v);
-    await refetch();
+
+  const onSpeedChange = async (newSpeed: number) => {
+    await safeApiCall(() => changeSpeed.mutateAsync(newSpeed));
   };
+
   const onSeek = async (iso: string) => {
-    const mode = (status as any)?.mode;
-    const isStreaming = !!(status as any)?.isStreaming;
-    if (mode === 'TIMEMACHINE' && isStreaming) {
-      await jump.mutateAsync(iso);
+    setManualPosition(null);
+    const s: any = status || {};
+    const mode = s?.mode;
+    const isStreaming = !!s?.isStreaming;
+
+    if (mode === 'TIMEMACHINE' && isStreaming && !s?.isPaused) {
+      await safeApiCall(() => jump.mutateAsync(iso));
     } else {
-      await startTimemachine.mutateAsync({
-        startTime: iso,
-        speedMultiplier: speed,
-      });
+      await safeApiCall(() =>
+        startTimemachine.mutateAsync({ startTime: iso, speedMultiplier: speed })
+      );
     }
-    await refetch();
   };
-
-  // 드래그/클릭으로 포지션 변경 → start|jump 분기
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isDraggingRef = useRef(false);
-
-  // 페이지 전체에서 드래그 상태 추적(간단)
-  useEffect(() => {
-    const down = () => (isDraggingRef.current = true);
-    const up = () => (isDraggingRef.current = false);
-    window.addEventListener('mousedown', down);
-    window.addEventListener('mouseup', up);
-    return () => {
-      window.removeEventListener('mousedown', down);
-      window.removeEventListener('mouseup', up);
-    };
-  }, []);
 
   const onPositionChange = async (pct: number) => {
     const clamped = clamp(pct, 0, 100);
-    const iso = pctToIso(clamped, timeRange);
+    setManualPosition(clamped);
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(
       async () => {
+        const s: any = status || {};
         if (clamped >= 99.9) {
-          await startRealtime.mutateAsync();
+          await safeApiCall(() => startRealtime.mutateAsync());
+          setManualPosition(null);
         } else {
-          const mode = (status as any)?.mode;
-          const isStreaming = !!(status as any)?.isStreaming;
-          if (mode === 'TIMEMACHINE' && isStreaming) {
-            await jump.mutateAsync(iso);
+          const targetTime = pctToIso(clamped, timeRange, referenceIso);
+          if (s?.mode === 'TIMEMACHINE' && s?.isStreaming && !s?.isPaused) {
+            await safeApiCall(() => jump.mutateAsync(targetTime));
           } else {
-            await startTimemachine.mutateAsync({
-              startTime: iso,
-              speedMultiplier: speed,
-            });
+            await safeApiCall(() =>
+              startTimemachine.mutateAsync({
+                startTime: targetTime,
+                speedMultiplier: speed,
+              })
+            );
           }
+          setManualPosition(null);
         }
-        await refetch();
       },
-      isDraggingRef.current ? 160 : 0
+      isDraggingRef.current ? 200 : 0
     );
   };
 
   const loading =
+    isProcessing ||
     isFetching ||
     startRealtime.isPending ||
     startTimemachine.isPending ||
@@ -205,26 +308,20 @@ export default function StreamingDashboard() {
     jump.isPending ||
     stop.isPending;
 
-  // 9) 메타
-  const streamMeta = useMemo(
-    () => ({
+  const streamMeta = useMemo(() => {
+    const s: any = status || {};
+    return {
       currentVirtualTime: virtualTime,
-      isPaused: !!(status as any)?.isPaused,
-      isStreaming: !!(status as any)?.isStreaming,
+      isPaused: !!s.isPaused,
+      isStreaming: !!s.isStreaming,
       mode:
-        (status as any)?.mode === 'TIMEMACHINE' ||
-        (status as any)?.mode === 'REALTIME'
-          ? (status as any)?.mode
-          : 'REALTIME',
+        s.mode === 'TIMEMACHINE' || s.mode === 'REALTIME' ? s.mode : 'REALTIME',
       progress:
-        typeof (status as any)?.progress === 'number'
-          ? (status as any)?.progress
-          : undefined,
+        typeof s.progress === 'number' ? s.progress : currentPosition / 100,
       speedMultiplier: speed,
-      updatedAt: (status as any)?.updatedAt ?? new Date().toISOString(),
-    }),
-    [status, speed, virtualTime]
-  );
+      updatedAt: s.updatedAt ?? new Date().toISOString(),
+    };
+  }, [status, speed, virtualTime, currentPosition]);
 
   return (
     <div className='space-y-6'>
@@ -247,6 +344,7 @@ export default function StreamingDashboard() {
         streamMeta={streamMeta}
       />
 
+      {/* 그래프 카드에만 상태 배지 표시 (WS 연결 중/끊김/에러일 때만) */}
       <StreamingDetectionChart
         data={visibleData}
         threshold={0.5}
@@ -255,43 +353,10 @@ export default function StreamingDashboard() {
         timeRange={timeRange}
         virtualTime={virtualTime}
         streamMeta={streamMeta}
+        connectionStatus={connectionStatus}
       />
 
       <StreamingDataTable data={visibleData} />
     </div>
   );
-}
-
-function clamp(n: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, n));
-}
-
-function pctToIso(pct: number, range: TimeRange) {
-  const clamped = clamp(pct, 0, 100);
-  const span = RANGE_MS[range];
-  const end = Date.now();
-  const start = end - span;
-  return new Date(start + (span * clamped) / 100).toISOString();
-}
-
-function buildVisibleData(
-  all: DetectionResult[],
-  range: TimeRange,
-  pct: number
-) {
-  if (!all?.length) return [];
-  const end = Date.now();
-  const start = end - RANGE_MS[range];
-
-  const inRange = all.filter((d) => {
-    const t = Date.parse(d.timestamp);
-    return Number.isFinite(t) && t >= start && t <= end;
-  });
-
-  inRange.sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  );
-
-  const endIdx = Math.floor((clamp(pct, 0, 100) * inRange.length) / 100);
-  return inRange.slice(0, Math.max(1, endIdx));
 }
