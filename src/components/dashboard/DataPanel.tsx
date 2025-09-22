@@ -1,7 +1,7 @@
 'use client';
 
 import { useFraudTrend } from '@/hooks/queries/dashboard/useFraudTrend';
-import { ChartRow, FraudTrendInterval, TrendPoint } from '@/lib/faudTrendUtils';
+import { ChartRow, FraudTrendInterval, TrendPoint, pad } from '@/lib/faudTrendUtils';
 import { useMemo } from 'react';
 import ChartsGrid from '../ui/trend/ChartsGrid';
 import StatsCards from '../ui/trend/StatsCards';
@@ -11,6 +11,31 @@ type Props = {
   endTime: string;
   interval: FraudTrendInterval;
 };
+
+function shiftToCurrentYearLabel(dateStr: string, interval: FraudTrendInterval) {
+  if (!dateStr) return dateStr;
+  const parsed = Date.parse(dateStr);
+  if (!Number.isFinite(parsed)) return dateStr;
+  const d = new Date(parsed);
+  const now = new Date();
+  d.setFullYear(now.getFullYear());
+
+  const MM = pad(d.getMonth() + 1);
+  const DD = pad(d.getDate());
+  const HH = pad(d.getHours());
+  const MI = pad(d.getMinutes());
+
+  switch (interval) {
+    case 'hourly':
+      return `${MM}/${DD} ${HH}:${MI}`;
+    case 'daily':
+    case 'weekly':
+      return `${MM}/${DD}`;
+    case 'monthly':
+    default:
+      return `${MM}`;
+  }
+}
 
 export default function DataPanel({ startTime, endTime, interval }: Props) {
   // 실제 데이터 fetch (로딩/에러/빈 상태는 이 컨테이너에서만 처리)
@@ -27,13 +52,13 @@ export default function DataPanel({ startTime, endTime, interval }: Props) {
       const rate = Number(t.fraudRate ?? 0);
       const pct = rate <= 1 ? rate * 100 : rate;
       return {
-        time: String(t.date ?? ''),
+        time: shiftToCurrentYearLabel(String(t.date ?? ''), interval),
         fraudCount: Number(t.fraudCount ?? 0),
         totalCount: Number(t.totalCount ?? 0),
         fraudRatePct: Number.isFinite(pct) ? pct : 0,
       };
     });
-  }, [data]);
+  }, [data, interval]);
 
   // 통계 계산
   const totalFraud = useMemo(

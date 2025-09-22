@@ -16,13 +16,22 @@ export default function AppProviders({
   initialSeriesProbRange?: any;
   temporalEnabled?: boolean;
 }) {
+  const enableStreamingProvider =
+    process.env.NEXT_PUBLIC_ENABLE_STREAMING_PROVIDER === '1';
+
+  const streamingWrapped = enableStreamingProvider ? (
+    <StreamingProvider>{children}</StreamingProvider>
+  ) : (
+    children
+  );
+
   return (
     <DashboardDataProvider
       initialConfidenceRange={initialConfidenceRange}
       initialKpiRange={initialKpiRange}
       initialSeriesProbRange={initialSeriesProbRange}
     >
-      <StreamingProvider>{children}</StreamingProvider>
+      {streamingWrapped}
     </DashboardDataProvider>
   );
 }

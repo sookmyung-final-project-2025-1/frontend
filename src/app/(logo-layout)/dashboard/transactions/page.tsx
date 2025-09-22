@@ -1,7 +1,6 @@
 // src/app/(logo-layout)/dashboard/transactions/page.tsx (경로는 네 구조에 맞게)
 'use client';
 
-import PageSizeSelector from '@/components/transactions/PageSizeSelector';
 import TransactionFilters from '@/components/transactions/TransactionFilters';
 import TransactionsTable from '@/components/transactions/TransactionsTable';
 import { useAllTransaction } from '@/hooks/queries/transaction/useAllTransaction';
@@ -106,11 +105,6 @@ export default function TransactionPage() {
       />
 
       <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-8'>
-        <PageSizeSelector
-          size={filters.pageable?.size ?? 10}
-          onChange={handlePageSizeChange}
-        />
-
         <TransactionsTable
           data={transactions}
           isLoading={isLoading}
