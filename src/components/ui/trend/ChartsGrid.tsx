@@ -1,6 +1,6 @@
 'use client';
 
-import { ChartRow } from '@/lib/faudTrendUtils';
+import { type ChartRow } from '@/components/dashboard/DataPanel';
 import {
   Area,
   AreaChart,
@@ -18,29 +18,33 @@ type Props = {
   chartData: ChartRow[];
 };
 
-function formatRate(value: number) {
-  return `${value.toFixed(1)}%`;
-}
+const formatRate = (v: number) => `${v.toFixed(1)}%`;
 
-// YYYY-MM-DD 또는 MM/DD HH:mm 등 들어와도 그대로 보여주되,
-// YYYY-MM-DD면 그대로, MM/DD HH:mm이면 그대로 표시.
-// 필요하면 여기서 d.slice(5)처럼 커스터마이즈 가능.
-const tickLabel = (s: string) => s;
+/** "2025-09-01" → "9/1", "09/01" → "9/1" */
+const toMD = (s: string) => {
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const m = Number(s.slice(5, 7));
+    const d = Number(s.slice(8, 10));
+    return `${m}/${d}`;
+  }
+  if (/^\d{2}\/\d{2}$/.test(s)) {
+    const [mm, dd] = s.split('/');
+    return `${Number(mm)}/${Number(dd)}`;
+  }
+  return s;
+};
 
 export default function ChartsGrid({ chartData }: Props) {
-  // 안전 가드: 숫자 보정
   const data = (chartData ?? []).map((d) => ({
     time: String(d.time ?? ''),
-    fraudCount: Number.isFinite(d.fraudCount as any) ? Number(d.fraudCount) : 0,
-    totalCount: Number.isFinite(d.totalCount as any) ? Number(d.totalCount) : 0,
-    fraudRatePct: Number.isFinite(d.fraudRatePct as any)
-      ? Number(d.fraudRatePct)
-      : 0,
+    fraudCount: Number(d.fraudCount ?? 0),
+    totalCount: Number(d.totalCount ?? 0),
+    fraudRatePct: Number(d.fraudRatePct ?? 0),
   }));
 
   return (
     <>
-      {/* 1) 사기 거래 트렌드 (라인) */}
+      {/* 1) 사기 거래 트렌드 */}
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
         <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-4'>
           <h4 className='text-slate-300 font-medium mb-2'>사기 거래 트렌드</h4>
@@ -50,10 +54,13 @@ export default function ChartsGrid({ chartData }: Props) {
                 <CartesianGrid strokeDasharray='3 3' stroke='#334155' />
                 <XAxis
                   dataKey='time'
+                  tickFormatter={toMD}
+                  allowDuplicatedCategory={false}
                   stroke='#64748b'
                   fontSize={12}
                   interval='preserveStartEnd'
-                  tickFormatter={tickLabel}
+                  tickMargin={8}
+                  minTickGap={12}
                 />
                 <YAxis allowDecimals={false} stroke='#64748b' fontSize={12} />
                 <Tooltip
@@ -61,11 +68,11 @@ export default function ChartsGrid({ chartData }: Props) {
                     Number(v).toLocaleString(),
                     '사기 건수',
                   ]}
-                  labelFormatter={(label) => `날짜: ${label as string}`}
+                  labelFormatter={(label) => `날짜: ${toMD(String(label))}`}
                   contentStyle={{
                     backgroundColor: '#1e293b',
                     border: '1px solid #334155',
-                    borderRadius: '8px',
+                    borderRadius: 8,
                     color: '#e2e8f0',
                   }}
                 />
@@ -84,7 +91,7 @@ export default function ChartsGrid({ chartData }: Props) {
           </div>
         </div>
 
-        {/* 2) 전체 거래량 (에어리어) */}
+        {/* 2) 전체 거래량 */}
         <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-4'>
           <h4 className='text-slate-300 font-medium mb-2'>전체 거래량</h4>
           <div className='h-80'>
@@ -93,10 +100,13 @@ export default function ChartsGrid({ chartData }: Props) {
                 <CartesianGrid strokeDasharray='3 3' stroke='#334155' />
                 <XAxis
                   dataKey='time'
+                  tickFormatter={toMD}
+                  allowDuplicatedCategory={false}
                   stroke='#64748b'
                   fontSize={12}
                   interval='preserveStartEnd'
-                  tickFormatter={tickLabel}
+                  tickMargin={8}
+                  minTickGap={12}
                 />
                 <YAxis allowDecimals={false} stroke='#64748b' fontSize={12} />
                 <Tooltip
@@ -104,11 +114,11 @@ export default function ChartsGrid({ chartData }: Props) {
                     Number(v).toLocaleString(),
                     '전체 건수',
                   ]}
-                  labelFormatter={(label) => `날짜: ${label as string}`}
+                  labelFormatter={(label) => `날짜: ${toMD(String(label))}`}
                   contentStyle={{
                     backgroundColor: '#1e293b',
                     border: '1px solid #334155',
-                    borderRadius: '8px',
+                    borderRadius: 8,
                     color: '#e2e8f0',
                   }}
                 />
@@ -128,7 +138,7 @@ export default function ChartsGrid({ chartData }: Props) {
         </div>
       </div>
 
-      {/* 3) 사기 비율 추이 (라인, % 축 0~100) */}
+      {/* 3) 사기 비율 추이 (0~100%) */}
       <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-4 mt-6'>
         <h4 className='text-slate-300 font-medium mb-2'>사기 비율 추이</h4>
         <div className='h-96'>
@@ -137,25 +147,27 @@ export default function ChartsGrid({ chartData }: Props) {
               <CartesianGrid strokeDasharray='3 3' stroke='#334155' />
               <XAxis
                 dataKey='time'
+                tickFormatter={toMD}
+                allowDuplicatedCategory={false}
                 stroke='#64748b'
                 fontSize={12}
                 interval='preserveStartEnd'
-                tickFormatter={tickLabel}
+                tickMargin={8}
+                minTickGap={12}
               />
               <YAxis
-                allowDecimals={false}
                 stroke='#64748b'
                 fontSize={12}
-                domain={[0, 100]} // 🔥 % 값이므로 0~100 고정
-                tickFormatter={formatRate}
+                domain={[0, 100]}
+                tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
               />
               <Tooltip
                 formatter={(v: any) => [formatRate(Number(v)), '사기 비율']}
-                labelFormatter={(label) => `날짜: ${label as string}`}
+                labelFormatter={(label) => `날짜: ${toMD(String(label))}`}
                 contentStyle={{
                   backgroundColor: '#1e293b',
                   border: '1px solid #334155',
-                  borderRadius: '8px',
+                  borderRadius: 8,
                   color: '#e2e8f0',
                 }}
               />

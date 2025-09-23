@@ -1,15 +1,21 @@
 'use client';
 
-import { useFraudTrend } from '@/hooks/queries/dashboard/useFraudTrend';
 import {
-  ChartRow,
-  FraudTrendInterval,
-  TrendPoint,
-  pad,
-} from '@/lib/faudTrendUtils';
+  useFraudTrend,
+  type FraudTrendInterval,
+  type TrendPoint,
+} from '@/hooks/queries/dashboard/useFraudTrend';
 import { useMemo } from 'react';
 import ChartsGrid from '../ui/trend/ChartsGrid';
 import StatsCards from '../ui/trend/StatsCards';
+
+/** 외부에서 쓰는 차트 row 타입(동일 유지) */
+export type ChartRow = {
+  time: string; // 축 라벨
+  fraudCount: number;
+  totalCount: number;
+  fraudRatePct: number; // 0~100
+};
 
 type Props = {
   startTime: string;
@@ -17,50 +23,49 @@ type Props = {
   interval: FraudTrendInterval;
 };
 
-function shiftToCurrentYearLabel(
-  dateStr: string,
-  interval: FraudTrendInterval
-) {
-  if (!dateStr) return dateStr;
-  const parsed = Date.parse(dateStr);
-  if (!Number.isFinite(parsed)) return dateStr;
-  const d = new Date(parsed);
-  const now = new Date();
-  d.setFullYear(now.getFullYear());
+/** 앞자리 연도를 2025로 강제 */
+function forceYear2025(isoLike: string) {
+  return /^\d{4}-/.test(isoLike) ? isoLike.replace(/^\d{4}/, '2025') : isoLike;
+}
 
-  const MM = pad(d.getMonth() + 1);
-  const DD = pad(d.getDate());
-  const HH = pad(d.getHours());
-  const MI = pad(d.getMinutes());
+/** 보여줄 라벨 포맷(연도 강제 후, interval별로) */
+function toDisplayLabel(dateStr: string, interval: FraudTrendInterval) {
+  const s = forceYear2025(String(dateStr));
+  const t = Date.parse(s);
+  if (!Number.isFinite(t)) return s;
+
+  const d = new Date(t);
+  const mm = d.getMonth() + 1;
+  const dd = d.getDate();
+  const hh = d.getHours();
+  const mi = d.getMinutes().toString().padStart(2, '0');
 
   switch (interval) {
     case 'hourly':
-      return `${MM}/${DD} ${HH}:${MI}`;
+      return `${mm}/${dd} ${hh}:${mi}`;
     case 'daily':
     case 'weekly':
-      return `${MM}/${DD}`;
+      return `${mm}/${dd}`;
     case 'monthly':
     default:
-      return `${MM}`;
+      return `${mm}`;
   }
 }
 
 export default function DataPanel({ startTime, endTime, interval }: Props) {
-  // 실제 데이터 fetch (로딩/에러/빈 상태는 이 컨테이너에서만 처리)
   const { data, isLoading, error } = useFraudTrend({
     startTime,
     endTime,
     interval,
   });
 
-  // chartData 가공
   const chartData: ChartRow[] = useMemo(() => {
-    if (!data || !Array.isArray((data as any).trends)) return [];
-    return (data!.trends as unknown as TrendPoint[]).map((t) => {
+    if (!data || !Array.isArray(data.trends)) return [];
+    return (data.trends as TrendPoint[]).map((t) => {
       const rate = Number(t.fraudRate ?? 0);
-      const pct = rate <= 1 ? rate * 100 : rate;
+      const pct = rate <= 1 ? rate * 100 : rate; // 0~1 → %
       return {
-        time: shiftToCurrentYearLabel(String(t.date ?? ''), interval),
+        time: toDisplayLabel(String(t.date ?? ''), interval),
         fraudCount: Number(t.fraudCount ?? 0),
         totalCount: Number(t.totalCount ?? 0),
         fraudRatePct: Number.isFinite(pct) ? pct : 0,
@@ -68,26 +73,23 @@ export default function DataPanel({ startTime, endTime, interval }: Props) {
     });
   }, [data, interval]);
 
-  // ───────── 집계: 전체 거래/사기/평균/사기비율 ─────────
+  // 카드용 집계
   const { totalTransactions, totalFraud, averageFraud, fraudRatio } =
     useMemo(() => {
       const totals = chartData.reduce(
         (acc, r) => {
-          acc.totalTx += r.totalCount || 0;
-          acc.totalFraud += r.fraudCount || 0;
+          acc.tx += r.totalCount || 0;
+          acc.fr += r.fraudCount || 0;
           return acc;
         },
-        { totalTx: 0, totalFraud: 0 }
+        { tx: 0, fr: 0 }
       );
       const buckets = chartData.length || 1;
-      const avgFraud = Math.round(totals.totalFraud / buckets);
-      const ratio = totals.totalTx > 0 ? totals.totalFraud / totals.totalTx : 0;
-
       return {
-        totalTransactions: totals.totalTx,
-        totalFraud: totals.totalFraud,
-        averageFraud: avgFraud,
-        fraudRatio: ratio,
+        totalTransactions: totals.tx,
+        totalFraud: totals.fr,
+        averageFraud: Math.round(totals.fr / buckets),
+        fraudRatio: totals.tx > 0 ? totals.fr / totals.tx : 0,
       };
     }, [chartData]);
 
@@ -97,35 +99,39 @@ export default function DataPanel({ startTime, endTime, interval }: Props) {
     weekly: '7일 기준',
     monthly: '30일 기준',
   };
-  const rangeLabel = rangeLabelMap[interval];
+
+  if (error) {
+    return (
+      <div className='rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-[#FCA5A5]'>
+        데이터를 불러오지 못했습니다.
+      </div>
+    );
+  }
+  if (isLoading && chartData.length === 0) {
+    return (
+      <div className='rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-slate-400'>
+        불러오는 중…
+      </div>
+    );
+  }
+  if (chartData.length === 0) {
+    return (
+      <div className='rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-slate-400'>
+        표시할 데이터가 없습니다.
+      </div>
+    );
+  }
 
   return (
     <div className='space-y-6'>
-      {/* 결과 박스: 이 안에서만 로딩/에러/빈 처리 */}
-      {error ? (
-        <div className='rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-[#FCA5A5]'>
-          데이터를 불러오지 못했습니다.
-        </div>
-      ) : isLoading && chartData.length === 0 ? (
-        <div className='rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-slate-400'>
-          불러오는 중…
-        </div>
-      ) : chartData.length === 0 ? (
-        <div className='rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-slate-400'>
-          표시할 데이터가 없습니다.
-        </div>
-      ) : (
-        <>
-          <StatsCards
-            totalTransactions={totalTransactions}
-            totalFraud={totalFraud}
-            averageFraud={averageFraud}
-            fraudRatio={fraudRatio}
-            rangeLabel={rangeLabel}
-          />
-          <ChartsGrid chartData={chartData} />
-        </>
-      )}
+      <StatsCards
+        totalTransactions={totalTransactions}
+        totalFraud={totalFraud}
+        averageFraud={averageFraud}
+        fraudRatio={fraudRatio}
+        rangeLabel={rangeLabelMap[interval]}
+      />
+      <ChartsGrid chartData={chartData} />
     </div>
   );
 }
