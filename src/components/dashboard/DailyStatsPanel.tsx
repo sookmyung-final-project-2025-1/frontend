@@ -1,3 +1,4 @@
+// src/components/dashboard/DailyStatsPanel.tsx
 'use client';
 
 import { useStatsDailyQuery } from '@/hooks/queries/dashboard/useStatsDailyQuery';
@@ -25,7 +26,6 @@ const daysInMonth = (year: number, month: number) =>
 // KST(+09:00) 기준 ISO 문자열 생성 (00:00:00)
 const kstStartISO = (y: number, m: number, d: number) =>
   `${y}-${pad2(m)}-${pad2(d)}T00:00:00+09:00`;
-// 다음날 00:00:00(+09:00)
 const kstNextDayISO = (y: number, m: number, d: number) => {
   const dt = new Date(y, m - 1, d);
   dt.setDate(dt.getDate() + 1);
@@ -35,14 +35,12 @@ const kstNextDayISO = (y: number, m: number, d: number) => {
   return `${ny}-${pad2(nm)}-${pad2(nd)}T00:00:00+09:00`;
 };
 
-// 0~1 또는 0~100 값을 % 문자열로 표기
 const toPercent = (v: number) => {
   const pct = v <= 1 ? v * 100 : v;
   return `${pct.toFixed(2)}%`;
 };
 
-// 화면 표시에 사용할 연도 강제(서버에서 1970 등으로 오더라도 보여주는 연도는 선택한 연도)
-// '1970-09-22...' 처럼 4자리로 시작하면 선두 연도만 교체
+// '1970-..' 같은 연도를 현재 선택 연도로 치환해서 보여주기(표시용)
 const forceDisplayYear = (s: string, displayYear: number) =>
   /^\d{4}-/.test(s) ? s.replace(/^\d{4}/, String(displayYear)) : s;
 
@@ -51,7 +49,8 @@ const forceDisplayYear = (s: string, displayYear: number) =>
    ========================= */
 type DailyResponse = {
   date: string;
-  fraudRate: number; // 0~1 또는 0~100
+  fraudRate: number; // 원본: 0~1 또는 0~100
+  fraudRatePct: number; // 표시용: 0~100
   fraudCount: number;
   totalCount: number;
 };
@@ -87,12 +86,17 @@ export default function DailyStatsPanel() {
   // 시각화용 데이터 가공 (+ 화면 표시는 선택한 연도로 강제)
   const chartData = useMemo<DailyResponse[]>(() => {
     if (!Array.isArray(data)) return [];
-    return data.map((d) => ({
-      date: forceDisplayYear(String(d.date ?? ''), year),
-      fraudRate: Number(d.fraudRate ?? 0),
-      fraudCount: Number(d.fraudCount ?? 0),
-      totalCount: Number(d.totalCount ?? 0),
-    }));
+    return data.map((d) => {
+      const rawRate = Number(d.fraudRate ?? 0);
+      const pct = rawRate <= 1 ? rawRate * 100 : rawRate; // ★ 0~100으로 통일
+      return {
+        date: forceDisplayYear(String(d.date ?? ''), year),
+        fraudRate: rawRate,
+        fraudRatePct: pct, // ★ 표시용 키
+        fraudCount: Number(d.fraudCount ?? 0),
+        totalCount: Number(d.totalCount ?? 0),
+      };
+    });
   }, [data, year]);
 
   const empty = !isLoading && chartData.length === 0;
@@ -166,7 +170,7 @@ export default function DailyStatsPanel() {
 
       {/* 차트들 */}
       <div className='grid grid-cols-1 xl:grid-cols-2 gap-6'>
-        {/* 거래수/사기수 (Bar) */}
+        {/* 거래수/사기수 */}
         <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-4'>
           <h4 className='text-lg font-semibold text-slate-200 mb-2'>
             거래수 & 사기 거래수
@@ -201,25 +205,22 @@ export default function DailyStatsPanel() {
                         : value
                   }
                 />
-                {/* ✅ 색상 구분 */}
                 <Bar
                   dataKey='totalCount'
                   radius={[4, 4, 0, 0]}
                   fill='#60A5FA'
                 />
-                {/* blue-400 */}
                 <Bar
                   dataKey='fraudCount'
                   radius={[4, 4, 0, 0]}
                   fill='#F87171'
                 />
-                {/* red-400 */}
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* 사기율 (Line) */}
+        {/* 사기율(%) */}
         <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-4'>
           <h4 className='text-lg font-semibold text-slate-200 mb-2'>
             사기율(%)
@@ -227,7 +228,9 @@ export default function DailyStatsPanel() {
           <div className='h-72'>
             <ResponsiveContainer width='100%' height='100%'>
               <LineChart
-                data={empty ? [{ date: '—', fraudRate: 0 }] : chartData}
+                data={
+                  empty ? ([{ date: '—', fraudRatePct: 0 }] as any) : chartData
+                }
               >
                 <CartesianGrid strokeDasharray='3 3' />
                 <XAxis dataKey='date' />
@@ -235,14 +238,18 @@ export default function DailyStatsPanel() {
                   domain={[0, 100]}
                   tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
                 />
-                <Tooltip formatter={(v) => [toPercent(Number(v)), '사기율']} />
-                <Legend formatter={(v) => (v === 'fraudRate' ? '사기율' : v)} />
+                <Tooltip
+                  formatter={(v) => [`${Number(v).toFixed(2)}%`, '사기율']}
+                />
+                <Legend
+                  formatter={(v) => (v === 'fraudRatePct' ? '사기율' : v)}
+                />
                 <Line
                   type='monotone'
-                  dataKey='fraudRate'
+                  dataKey='fraudRatePct' // ★ 0~100 값 사용
                   strokeWidth={2}
                   dot={{ r: 2 }}
-                  stroke='#FCD34D' // amber-300
+                  stroke='#FCD34D'
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -264,24 +271,20 @@ export default function DailyStatsPanel() {
               </tr>
             </thead>
             <tbody>
-              {(empty ? [] : chartData).map((row) => {
-                const pct =
-                  row.fraudRate <= 1 ? row.fraudRate * 100 : row.fraudRate;
-                return (
-                  <tr key={row.date} className='border-b border-slate-800'>
-                    <td className='px-4 py-2 text-slate-300'>{row.date}</td>
-                    <td className='px-4 py-2 text-right text-slate-200'>
-                      {row.totalCount?.toLocaleString()}
-                    </td>
-                    <td className='px-4 py-2 text-right text-slate-200'>
-                      {row.fraudCount?.toLocaleString()}
-                    </td>
-                    <td className='px-4 py-2 text-right text-slate-200'>
-                      {pct.toFixed(2)}%
-                    </td>
-                  </tr>
-                );
-              })}
+              {(empty ? [] : chartData).map((row) => (
+                <tr key={row.date} className='border-b border-slate-800'>
+                  <td className='px-4 py-2 text-slate-300'>{row.date}</td>
+                  <td className='px-4 py-2 text-right text-slate-200'>
+                    {row.totalCount?.toLocaleString()}
+                  </td>
+                  <td className='px-4 py-2 text-right text-slate-200'>
+                    {row.fraudCount?.toLocaleString()}
+                  </td>
+                  <td className='px-4 py-2 text-right text-slate-200'>
+                    {row.fraudRatePct.toFixed(2)}%
+                  </td>
+                </tr>
+              ))}
               {empty && (
                 <tr>
                   <td

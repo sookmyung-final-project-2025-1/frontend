@@ -103,7 +103,7 @@ async function handleRequest(
     );
   }
 
-  const upstreamUrl = `${API}/model/predict/single/${req.nextUrl.search || ''}`;
+  const upstreamUrl = `${API}/dashboard/stats/monthly${req.nextUrl.search || ''}`;
 
   try {
     const shouldSendBody = method !== 'GET';
@@ -204,9 +204,4 @@ async function handleRequest(
 // GET 요청 핸들러
 export async function GET(req: NextRequest) {
   return handleRequest(req, 'GET');
-}
-
-// PUT 요청 핸들러
-export async function POST(req: NextRequest) {
-  return handleRequest(req, 'POST');
 }

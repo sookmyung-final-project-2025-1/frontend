@@ -1,21 +1,24 @@
 // src/components/dashboard/KpiPanel.tsx
 'use client';
 
-import { useKpiQuery } from '@/hooks/queries/dashboard/useKpiQuery';
-import { useMemo, useState } from 'react';
-// useKpiQuery가 반환하는 타입을 새 스키마에 맞게 수정했다는 가정
-// (falsePositiveRate, latencyP50Ms/latencyP95Ms 등)
 import type { Kpi } from '@/hooks/queries/dashboard/useKpiQuery';
+import { useKpiQuery } from '@/hooks/queries/dashboard/useKpiQuery';
 import { RefreshCw } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
-/* ───────────── 시간 유틸 ───────────── */
+/* ───────────── 날짜 유틸(YYYY-MM-DD) ───────────── */
 const pad = (n: number) => String(n).padStart(2, '0');
-const toLocalInput = (d: Date) =>
-  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours()
-  )}:${pad(d.getMinutes())}`;
-/** datetime-local 값(로컬) → ISO(UTC) */
-const localInputToISO = (v: string) => new Date(v).toISOString();
+
+const toLocalDateInput = (d: Date) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+/** date(YYYY-MM-DD) → ISO(UTC) 시작 00:00:00.000 */
+const localDateToStartISO = (v: string) =>
+  new Date(`${v}T00:00:00`).toISOString();
+
+/** date(YYYY-MM-DD) → ISO(UTC) 종료 23:59:59.999 */
+const localDateToEndISO = (v: string) =>
+  new Date(`${v}T23:59:59.999`).toISOString();
 
 /* ───────────── 포맷터 ───────────── */
 const fmtInt = (v?: number) =>
@@ -43,9 +46,7 @@ function KpiCards({ kpi }: { kpi?: Kpi | null }) {
   const items = [
     { label: '전체 거래 수', value: fmtInt(kpi?.totalTransactions) },
     { label: '사기 탐지 건수', value: fmtInt(kpi?.fraudTransactions) },
-
     { label: '오탐 비율', value: fmtPct100(kpi?.falsePositiveRate) },
-
     { label: '시간당 처리량', value: fmtInt(kpi?.throughputPerHour) },
     { label: '평균 거래 금액', value: fmtKRW(kpi?.averageTransactionAmount) },
     { label: '고유 사용자 수', value: fmtInt(kpi?.uniqueUsers) },
@@ -70,18 +71,18 @@ function KpiCards({ kpi }: { kpi?: Kpi | null }) {
 
 /* ───────────── 컨트롤 + 데이터 패널 ───────────── */
 export default function KpiPanel() {
-  // 기본: 최근 30일 ~ 지금
+  // 기본: 최근 30일 ~ 오늘
   const now = new Date();
   const startDefault = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   const [startLocal, setStartLocal] = useState<string>(
-    toLocalInput(startDefault)
+    toLocalDateInput(startDefault)
   );
-  const [endLocal, setEndLocal] = useState<string>(toLocalInput(now));
+  const [endLocal, setEndLocal] = useState<string>(toLocalDateInput(now));
 
   // 쿼리 파라미터(ISO로 변환)
-  const startISO = useMemo(() => localInputToISO(startLocal), [startLocal]);
-  const endISO = useMemo(() => localInputToISO(endLocal), [endLocal]);
+  const startISO = useMemo(() => localDateToStartISO(startLocal), [startLocal]);
+  const endISO = useMemo(() => localDateToEndISO(endLocal), [endLocal]);
 
   const kpiQ = useKpiQuery({
     startTime: startISO,
@@ -93,18 +94,18 @@ export default function KpiPanel() {
       {/* 컨트롤 바 */}
       <div className='flex flex-col md:flex-row md:items-end gap-3'>
         <div className='flex-1'>
-          <label className='block text-sm mb-1 text-slate-300'>시작 시간</label>
+          <label className='block text-sm mb-1 text-slate-300'>시작 일자</label>
           <input
-            type='datetime-local'
+            type='date'
             value={startLocal}
             onChange={(e) => setStartLocal(e.target.value)}
             className='w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500/60 focus:border-slate-500'
           />
         </div>
         <div className='flex-1'>
-          <label className='block text-sm mb-1 text-slate-300'>종료 시간</label>
+          <label className='block text-sm mb-1 text-slate-300'>종료 일자</label>
           <input
-            type='datetime-local'
+            type='date'
             value={endLocal}
             onChange={(e) => setEndLocal(e.target.value)}
             className='w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500/60 focus:border-slate-500'
@@ -125,7 +126,8 @@ export default function KpiPanel() {
 
       {/* 상태 텍스트 */}
       <div className='text-xs text-slate-400'>
-        범위: {startISO} ~ {endISO} {kpiQ.isFetching ? '(불러오는 중…)' : ''}
+        범위: {startLocal} ~ {endLocal}{' '}
+        {kpiQ.isFetching ? '(불러오는 중…)' : ''}
       </div>
 
       {/* 카드 */}

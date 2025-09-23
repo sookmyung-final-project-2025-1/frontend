@@ -1,7 +1,12 @@
 'use client';
 
 import { useFraudTrend } from '@/hooks/queries/dashboard/useFraudTrend';
-import { ChartRow, FraudTrendInterval, TrendPoint, pad } from '@/lib/faudTrendUtils';
+import {
+  ChartRow,
+  FraudTrendInterval,
+  TrendPoint,
+  pad,
+} from '@/lib/faudTrendUtils';
 import { useMemo } from 'react';
 import ChartsGrid from '../ui/trend/ChartsGrid';
 import StatsCards from '../ui/trend/StatsCards';
@@ -12,7 +17,10 @@ type Props = {
   interval: FraudTrendInterval;
 };
 
-function shiftToCurrentYearLabel(dateStr: string, interval: FraudTrendInterval) {
+function shiftToCurrentYearLabel(
+  dateStr: string,
+  interval: FraudTrendInterval
+) {
   if (!dateStr) return dateStr;
   const parsed = Date.parse(dateStr);
   if (!Number.isFinite(parsed)) return dateStr;
@@ -60,36 +68,36 @@ export default function DataPanel({ startTime, endTime, interval }: Props) {
     });
   }, [data, interval]);
 
-  // 통계 계산
-  const totalFraud = useMemo(
-    () => chartData.reduce((s, r) => s + r.fraudCount, 0),
-    [chartData]
-  );
-  const averageFraud = useMemo(
-    () => (chartData.length ? Math.round(totalFraud / chartData.length) : 0),
-    [totalFraud, chartData.length]
-  );
-  const maxFraud = useMemo(
-    () =>
-      chartData.length ? Math.max(...chartData.map((r) => r.fraudCount)) : 0,
-    [chartData]
-  );
-  const { trendUp, trendPct } = useMemo(() => {
-    const recent = chartData.slice(-7).map((r) => r.fraudCount);
-    const previous = chartData.slice(-14, -7).map((r) => r.fraudCount);
-    const recentAvg = recent.length
-      ? recent.reduce((a, b) => a + b, 0) / recent.length
-      : 0;
-    const prevAvg = previous.length
-      ? previous.reduce((a, b) => a + b, 0) / previous.length
-      : recentAvg;
-    const up = recentAvg > prevAvg;
-    const pct =
-      prevAvg > 0
-        ? ((Math.abs(recentAvg - prevAvg) / prevAvg) * 100).toFixed(1)
-        : '0.0';
-    return { trendUp: up, trendPct: pct };
-  }, [chartData]);
+  // ───────── 집계: 전체 거래/사기/평균/사기비율 ─────────
+  const { totalTransactions, totalFraud, averageFraud, fraudRatio } =
+    useMemo(() => {
+      const totals = chartData.reduce(
+        (acc, r) => {
+          acc.totalTx += r.totalCount || 0;
+          acc.totalFraud += r.fraudCount || 0;
+          return acc;
+        },
+        { totalTx: 0, totalFraud: 0 }
+      );
+      const buckets = chartData.length || 1;
+      const avgFraud = Math.round(totals.totalFraud / buckets);
+      const ratio = totals.totalTx > 0 ? totals.totalFraud / totals.totalTx : 0;
+
+      return {
+        totalTransactions: totals.totalTx,
+        totalFraud: totals.totalFraud,
+        averageFraud: avgFraud,
+        fraudRatio: ratio,
+      };
+    }, [chartData]);
+
+  const rangeLabelMap: Record<FraudTrendInterval, string> = {
+    hourly: '1시간 기준',
+    daily: '1일 기준',
+    weekly: '7일 기준',
+    monthly: '30일 기준',
+  };
+  const rangeLabel = rangeLabelMap[interval];
 
   return (
     <div className='space-y-6'>
@@ -109,11 +117,11 @@ export default function DataPanel({ startTime, endTime, interval }: Props) {
       ) : (
         <>
           <StatsCards
+            totalTransactions={totalTransactions}
             totalFraud={totalFraud}
             averageFraud={averageFraud}
-            maxFraud={maxFraud}
-            trendUp={trendUp}
-            trendPct={trendPct}
+            fraudRatio={fraudRatio}
+            rangeLabel={rangeLabel}
           />
           <ChartsGrid chartData={chartData} />
         </>

@@ -1,20 +1,9 @@
 import { useHealthQuery } from '@/hooks/queries/dashboard/useHealthQuery';
+import { Activity, AlertTriangle, CheckCircle, TrendingUp } from 'lucide-react';
 import {
-  Activity,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  TrendingUp,
-} from 'lucide-react';
-import {
-  Bar,
-  BarChart,
   CartesianGrid,
-  Cell,
   Line,
   LineChart,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -82,17 +71,17 @@ export default function SystemHealth() {
   };
 
   return (
-    <div className='min-h-screen p-6 text-[#ffffff] rounded-2xl border border-slate-800 bg-slate-900/40'>
-      <div className='mx-auto'>
+    <div className='rounded-2xl border border-slate-800 bg-slate-900/40 p-6 text-white'>
+      <div className='mx-auto space-y-8'>
         {/* 헤더 */}
-        <div className='mb-8'>
+        <div>
           <p className='text-gray-600'>
             마지막 체크: {new Date(data.checkedAt).toLocaleString('ko-KR')}
           </p>
         </div>
 
         {/* 상태 카드들 */}
-        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'>
+        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
           {/* 전체 상태 */}
           <div className='bg-white rounded-lg shadow-sm p-6 border'>
             <div className='flex items-center justify-between'>
@@ -120,55 +109,12 @@ export default function SystemHealth() {
               <TrendingUp className='w-6 h-6 text-blue-500' />
             </div>
           </div>
-
-          {/* 평균 처리 시간 */}
-          <div className='bg-white rounded-lg shadow-sm p-6 border'>
-            <div className='flex items-center justify-between'>
-              <div>
-                <p className='text-sm font-medium'>평균 처리 시간</p>
-                <p className='text-2xl font-bold text-green-600'>
-                  {formatTime(data.avgProcessingTime)}
-                </p>
-              </div>
-              <Clock className='w-6 h-6 text-green-500' />
-            </div>
-          </div>
         </div>
 
         {/* 차트 섹션 */}
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8'>
-          {/* 헬스 스코어 원형 차트 */}
-          <div className='bg-white rounded-lg shadow-sm p-6 border'>
-            <h3 className='text-lg font-semibold mb-4'>헬스 스코어</h3>
-            <div className='h-64'>
-              <ResponsiveContainer width='100%' height='75%'>
-                <PieChart>
-                  <Pie
-                    data={scoreData}
-                    cx='50%'
-                    cy='50%'
-                    innerRadius={60}
-                    outerRadius={80}
-                    startAngle={90}
-                    endAngle={-270}
-                    dataKey='value'
-                  >
-                    {scoreData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className='w-full mt-4 flex gap-2 items-end justify-end'>
-                <p className='text-3xl font-bold text-blue-600'>{data.score}</p>
-                <p className='text-sm text-gray-500'>/ 100</p>
-              </div>
-            </div>
-          </div>
 
-          {/* 처리 시간 비교 차트 */}
-          <div className='bg-white rounded-lg shadow-sm p-6 border'>
+        {/* 처리 시간 비교 차트 */}
+        {/* <div className='bg-white rounded-lg shadow-sm p-6 border'>
             <h3 className='text-lg font-semibold mb-4'>처리 시간 비교</h3>
             <div className='h-64'>
               <ResponsiveContainer width='100%' height='100%'>
@@ -188,7 +134,12 @@ export default function SystemHealth() {
                     tickMargin={8}
                     tickFormatter={(v: number) => formatTime(v)}
                   />
-                  <Tooltip formatter={(value) => [formatTime(Number(value)), '처리 시간']} />
+                  <Tooltip
+                    formatter={(value) => [
+                      formatTime(Number(value)),
+                      '처리 시간',
+                    ]}
+                  />
                   <Bar
                     dataKey='value'
                     radius={[2, 2, 0, 0]}
@@ -198,12 +149,12 @@ export default function SystemHealth() {
               </ResponsiveContainer>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* 24시간 트렌드 차트 */}
         <div className='bg-white rounded-lg shadow-sm p-6 border'>
           <h3 className='text-lg font-semibold mb-4'>24시간 트렌드</h3>
-          <div className='h-80'>
+          <div className='h-64'>
             <ResponsiveContainer width='100%' height='100%'>
               <LineChart data={timeSeriesData}>
                 <CartesianGrid strokeDasharray='3 3' />
@@ -246,7 +197,7 @@ export default function SystemHealth() {
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <div className='flex justify-center mt-4 space-x-6'>
+          <div className='flex justify-center mt-4 space-x-6 text-sm text-gray-600'>
             <div className='flex items-center'>
               <div className='w-3 h-3 bg-blue-500 rounded-full mr-2'></div>
               <span className='text-sm text-gray-600'>헬스 스코어</span>
@@ -255,59 +206,6 @@ export default function SystemHealth() {
               <div className='w-3 h-3 bg-green-500 rounded-full mr-2'></div>
               <span className='text-sm text-gray-600'>처리 시간</span>
             </div>
-          </div>
-        </div>
-
-        {/* 세부 정보 테이블 */}
-        <div className='bg-white rounded-lg shadow-sm p-6 border mt-6'>
-          <h3 className='text-lg font-semibold mb-4'>세부 메트릭</h3>
-          <div className='overflow-x-auto'>
-            <table className='min-w-full divide-y divide-gray-200'>
-              <tbody className='bg-white divide-y divide-gray-200'>
-                <tr>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200'>
-                    헬스 스코어
-                  </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-400'>
-                    {data.score}/100
-                  </td>
-                </tr>
-                <tr>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200'>
-                    평균 처리 시간
-                  </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-400'>
-                    {formatTime(data.avgProcessingTime)}
-                  </td>
-                </tr>
-                <tr>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200'>
-                    P95 처리 시간
-                  </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-400'>
-                    {formatTime(data.p95ProcessingTime)}
-                  </td>
-                </tr>
-                <tr>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
-                    시스템 상태
-                  </td>
-                  <td className='px-6 py-4 whitespace-nowrap'>
-                    <span
-                      className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        data.status === 'HEALTHY'
-                          ? 'bg-[#DCFCE7] text-[#166534]'
-                          : data.status === 'WARNING'
-                            ? 'bg-[#FEF9C3] text-[#854D0E]'
-                            : 'bg-[#FEE2E2] text-[#991B1B]'
-                      }`}
-                    >
-                      {data.status}
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </div>
       </div>
