@@ -1,4 +1,3 @@
-// src/components/ui/trend/StatsCards.tsx
 'use client';
 
 import { BarChart3, Percent } from 'lucide-react';
@@ -6,7 +5,7 @@ import { BarChart3, Percent } from 'lucide-react';
 type Props = {
   totalTransactions: number; // 전체 거래 건수
   totalFraud: number; // 총 사기 건수
-  averageFraud: number; // 평균 사기 건수(버킷 평균)
+  averageFraud: number; // 평균 사기 건수(버킷 평균) - 현재 미표시
   fraudRatio: number; // 사기 비율 (0~1)
   rangeLabel?: string;
 };
@@ -14,7 +13,7 @@ type Props = {
 export default function StatsCards({
   totalTransactions,
   totalFraud,
-  averageFraud,
+  averageFraud, // eslint-disable-line @typescript-eslint/no-unused-vars
   fraudRatio,
   rangeLabel,
 }: Props) {
@@ -47,18 +46,7 @@ export default function StatsCards({
         </div>
       </div>
 
-      {/* 평균 사기 건수 */}
-      {/* <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-4'>
-        <div className='flex items-center justify-between'>
-          <div>
-            <p className='text-sm text-slate-400'>평균 사기 건수</p>
-            <p className='text-2xl font-semibold' style={{ color: '#38BDF8' }}>
-              {averageFraud.toLocaleString()}
-            </p>
-          </div>
-          <AlertTriangle className='w-6 h-6' style={{ color: '#38BDF8' }} />
-        </div>
-      </div> */}
+      {/* (요청에 따라 평균/트렌드 카드는 제거) */}
 
       {/* 사기 비율 */}
       <div className='bg-slate-900/40 border border-slate-800 rounded-xl p-4'>
