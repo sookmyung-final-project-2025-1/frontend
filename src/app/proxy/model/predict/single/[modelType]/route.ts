@@ -157,9 +157,13 @@ async function handleRequest(
   }
 }
 
-export async function POST(
-  req: NextRequest,
-  context: { params: { modelType?: string } }
-) {
-  return handleRequest(req, 'POST', context.params?.modelType);
+// ✅ Next.js 15 호환 타입 정의
+type RouteParams = {
+  params: Promise<{ modelType: string }>;
+};
+
+export async function POST(req: NextRequest, context: RouteParams) {
+  // ✅ params는 이제 Promise입니다
+  const { modelType } = await context.params;
+  return handleRequest(req, 'POST', modelType);
 }
