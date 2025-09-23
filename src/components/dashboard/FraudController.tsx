@@ -29,7 +29,8 @@ export default function Controls({
       <div>
         <label className='block text-sm text-slate-300 mb-1'>간격</label>
         <select
-          value={interval}
+          // ✅ 문자열로 매칭되도록 보장
+          value={`${interval}`}
           onChange={(e) =>
             onIntervalChange(e.target.value as FraudTrendInterval)
           }

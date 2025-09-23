@@ -20,6 +20,25 @@ type WsPacket =
   | undefined;
 
 /* 패킷에서 거래 배열 추출 */
+function shiftYearToNow(iso?: string): string | undefined {
+  if (!iso) return iso;
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return iso;
+  const now = new Date();
+  d.setFullYear(now.getFullYear());
+  return d.toISOString();
+}
+
+function normalizeTransaction(t: any): any {
+  if (!t || typeof t !== 'object') return t;
+  const clone: any = { ...t };
+  const candidates = ['time', 'timestamp', 'eventTime', 'createdAt'];
+  for (const key of candidates) {
+    if (clone[key]) clone[key] = shiftYearToNow(clone[key]);
+  }
+  return clone;
+}
+
 function extractTransactions(packet: WsPacket): any[] {
   let list: any[] = [];
   if (!packet) return list;
@@ -84,9 +103,8 @@ export function useGetWebsocket() {
     }
 
     if (mode === 'sockjs' && !/^https?:\/\//i.test(finalUrl)) {
-      // SockJS는 http/https 혹은 현재 오리진 상대경로 사용
       if (finalUrl.startsWith('/')) {
-        finalUrl = finalUrl; // 상대 경로 허용
+        finalUrl = finalUrl;
       } else if (isWsScheme) {
         try {
           const url = new URL(RAW_URL);
@@ -120,11 +138,12 @@ export function useGetWebsocket() {
               const raw = msg.body ?? '';
               const parsed: WsPacket = raw ? JSON.parse(raw) : null;
 
-              const list = extractTransactions(parsed);
-              const vtRaw =
+              const list = extractTransactions(parsed).map(normalizeTransaction);
+              const vtOriginal =
                 (parsed && (parsed as any).virtualTime) ||
                 (parsed && (parsed as any).timestamp) ||
                 undefined;
+              const vtRaw = shiftYearToNow(vtOriginal);
               setData((prev) => {
                 const prevTx = Array.isArray(prev.transactions)
                   ? prev.transactions
@@ -205,7 +224,7 @@ export function useGetWebsocket() {
     });
 
     if (mode === 'native') {
-      client.brokerURL = finalUrl; // wss://host/ws
+      client.brokerURL = finalUrl;
     } else {
       client.webSocketFactory = () =>
         new SockJS(finalUrl, undefined, {

@@ -3,6 +3,8 @@
 import DailyStatsPanel from '@/components/dashboard/DailyStatsPanel';
 import FraudTrend from '@/components/dashboard/FraudTrend';
 import KpiCards from '@/components/dashboard/KpiCards';
+import ProbChartWeekly from '@/components/dashboard/ProbChart';
+import ProbChartMonthly from '@/components/dashboard/ProbChartMonthly';
 import SystemHealth from '@/components/dashboard/SystemHealth';
 import { useDashboardData } from '@/contexts/DashboardActionsContext';
 
@@ -55,6 +57,8 @@ export default function DashboardPage() {
             </h3>
             <div className='flex flex-col space-y-6 w-full'>
               <DailyStatsPanel />
+              <ProbChartWeekly />
+              <ProbChartMonthly />
             </div>
           </div>
         </div>

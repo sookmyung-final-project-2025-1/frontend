@@ -5,49 +5,6 @@ export const pad = (n: number) => String(n).padStart(2, '0');
 export const toLocalDateTimeParam = (d: Date) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 
-export type FraudTrendInterval = 'hourly' | 'daily' | 'weekly' | 'monthly';
-
-/**
- * 조회 윈도우를 "지금 기준으로 뒤로 가서" 계산
- * - hourly  : 최근 1일
- * - daily   : 최근 30일
- * - weekly  : 최근 7일
- * - monthly : 최근 30일
- *
- * endTime  = now
- * startTime = now - lookback
- */
-export function makeRange(_ymd: string, interval: FraudTrendInterval) {
-  // ❗ ymd는 무시하고, 항상 현재를 endTime으로 사용
-  const now = new Date(); // 로컬 타임
-  const end = new Date(now);
-
-  const DAY = 24 * 60 * 60 * 1000;
-  let lookbackDays = 30;
-
-  switch (interval) {
-    case 'hourly':
-      lookbackDays = 1;
-      break;
-    case 'daily':
-      lookbackDays = 30;
-      break;
-    case 'weekly':
-      lookbackDays = 7;
-      break;
-    case 'monthly':
-      lookbackDays = 30;
-      break;
-  }
-
-  const start = new Date(end.getTime() - lookbackDays * DAY);
-
-  return {
-    startTime: toLocalDateTimeParam(start),
-    endTime: toLocalDateTimeParam(end),
-  };
-}
-
 /** ---- 차트/가공 타입 ---- */
 export type TrendPoint = {
   date: string;
@@ -62,3 +19,83 @@ export type ChartRow = {
   totalCount: number;
   fraudRatePct: number; // 0~100
 };
+
+// 문자열 리터럴로 고정해 <select>와 정확히 매칭되게 함
+export const FRAUD_INTERVALS = [
+  'hourly',
+  'daily',
+  'weekly',
+  'monthly',
+] as const;
+export type FraudTrendInterval = (typeof FRAUD_INTERVALS)[number];
+
+// 날짜 유틸
+const startOfDay = (d: Date) => {
+  const dd = new Date(d);
+  dd.setHours(0, 0, 0, 0);
+  return dd;
+};
+
+const endOfDay = (d: Date) => {
+  const dd = new Date(d);
+  dd.setHours(23, 59, 59, 999);
+  return dd;
+};
+
+function addDays(d: Date, n: number) {
+  const dd = new Date(d);
+  dd.setDate(dd.getDate() + n);
+  return dd;
+}
+
+function addMonths(d: Date, n: number) {
+  const dd = new Date(d);
+  dd.setMonth(dd.getMonth() + n);
+  return dd;
+}
+
+/**
+ * makeRange
+ * - hourly: 선택 날짜 1일 범위(시간 단위 집계)
+ * - daily:  선택 날짜 1일 범위(일 단위 집계)
+ * - weekly: 선택 날짜 포함 최근 7일
+ * - monthly: 선택 날짜 기준 최근 1개월
+ * 반환은 ISO 문자열(UTC)로.
+ */
+export function makeRange(selectedDate: string, interval: FraudTrendInterval) {
+  const base = new Date(`${selectedDate}T00:00:00`);
+  let start: Date;
+  let end: Date;
+
+  switch (interval) {
+    case 'hourly': {
+      start = startOfDay(base);
+      end = endOfDay(base);
+      break;
+    }
+    case 'daily': {
+      start = startOfDay(base);
+      end = endOfDay(base);
+      break;
+    }
+    case 'weekly': {
+      end = endOfDay(base);
+      start = startOfDay(addDays(base, -6)); // 총 7일(선택일 포함)
+      break;
+    }
+    case 'monthly': {
+      end = endOfDay(base);
+      start = startOfDay(addMonths(base, -1)); // 대략 최근 1개월
+      break;
+    }
+    default: {
+      start = startOfDay(base);
+      end = endOfDay(base);
+    }
+  }
+
+  return {
+    startTime: start.toISOString(),
+    endTime: end.toISOString(),
+  };
+}

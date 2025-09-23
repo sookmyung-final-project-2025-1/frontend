@@ -103,7 +103,7 @@ async function handleRequest(
     );
   }
 
-  const upstreamUrl = `${API}/dashboard/stats/hourly${req.nextUrl.search || ''}`;
+  const upstreamUrl = `${API}/dashboard/stats/monthly${req.nextUrl.search || ''}`;
 
   try {
     const shouldSendBody = method !== 'GET';

@@ -67,7 +67,7 @@ export function usePredictSingleModel() {
       payload: TransactionRequest;
     }): Promise<SingleModelResponse> => {
       const res = await fetch(
-        `/proxy/model/predict/single?modelType=${encodeURIComponent(vars.model)}`,
+        `/proxy/model/predict/single/${encodeURIComponent(vars.model)}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

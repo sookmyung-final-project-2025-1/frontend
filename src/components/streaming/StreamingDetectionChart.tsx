@@ -158,7 +158,7 @@ export default function StreamingDetectionChart({
   const showBadge = connectionStatus !== 'connected';
 
   return (
-    <div className='relative rounded-xl border border-slate-700 bg-slate-900 p-4'>
+    <div className='relative rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-6'>
       {showBadge && (
         <div className='absolute right-4 top-4 z-10 rounded-full border border-yellow-600/40 bg-yellow-900/30 px-3 py-1 text-xs text-yellow-200'>
           {connectionStatus === 'connecting'
@@ -169,7 +169,7 @@ export default function StreamingDetectionChart({
         </div>
       )}
 
-      <div className='mb-3 flex items-center justify-between'>
+      <div className='flex items-center justify-between'>
         <h3 className='text-lg font-semibold'>실시간 사기 탐지 결과</h3>
         <div className='text-sm text-slate-400'>
           {visibleData.length} / {data.length} 포인트 ·{' '}
@@ -180,92 +180,151 @@ export default function StreamingDetectionChart({
         </div>
       </div>
 
-      <div className='h-80'>
-        <ResponsiveContainer width='100%' height='100%'>
-          <LineChart
-            data={chartData}
-            margin={{ top: 5, right: 16, left: 0, bottom: 0 }}
-          >
-            <CartesianGrid strokeDasharray='3 3' stroke='#374151' />
-            <XAxis
-              type='number'
-              dataKey='timeMs'
-              domain={['dataMin', 'dataMax']}
-              tick={{ fontSize: 12, fill: '#9CA3AF' }}
-              stroke='#6B7280'
-              tickFormatter={(value) =>
-                new Date(value).toLocaleTimeString('ko-KR', { hour12: false })
-              }
-            />
-            <YAxis
-              domain={[0, 'auto']}
-              tick={{ fontSize: 12, fill: '#9CA3AF' }}
-              stroke='#6B7280'
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: '#1F2937',
-                border: '1px solid #374151',
-                borderRadius: '8px',
-              }}
-              labelFormatter={(value) =>
-                new Date(value as number).toLocaleTimeString('ko-KR', {
-                  hour12: false,
-                })
-              }
-            />
-            <Legend />
-            <ReferenceLine
-              y={threshold}
-              stroke='#EF4444'
-              strokeOpacity={0.7}
-              strokeDasharray='5 5'
-              label={{ value: `Threshold ${threshold}`, position: 'right' }}
-            />
-            <Line
-              type='monotone'
-              dataKey='score'
-              stroke='#3B82F6'
-              dot={false}
-              name='Score'
-              strokeWidth={2}
-            />
-            <Line
-              type='monotone'
-              dataKey='lgbm'
-              stroke='#10B981'
-              dot={false}
-              name='LGBM'
-              strokeWidth={1}
-            />
-            <Line
-              type='monotone'
-              dataKey='xgb'
-              stroke='#F59E0B'
-              dot={false}
-              name='XGB'
-              strokeWidth={1}
-            />
-            <Line
-              type='monotone'
-              dataKey='cat'
-              stroke='#8B5CF6'
-              dot={false}
-              name='CatBoost'
-              strokeWidth={1}
-            />
-            <Line
-              type='linear'
-              dataKey='fraud'
-              name='Fraud Detection'
-              stroke='#EF4444'
-              strokeWidth={3}
-              strokeDasharray='4 2'
-              dot={{ fill: '#EF4444', r: 3 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+      <div>
+        <h4 className='mb-2 text-sm text-slate-300'>Score · Threshold</h4>
+        <div className='h-56'>
+          <ResponsiveContainer width='100%' height='100%'>
+            <LineChart
+              data={chartData}
+              margin={{ top: 5, right: 16, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray='3 3' stroke='#374151' />
+              <XAxis
+                type='number'
+                dataKey='timeMs'
+                domain={['dataMin', 'dataMax']}
+                tick={{ fontSize: 12, fill: '#9CA3AF' }}
+                stroke='#6B7280'
+                tickFormatter={(value) =>
+                  new Date(value).toLocaleTimeString('ko-KR', {
+                    hour12: false,
+                  })
+                }
+              />
+              <YAxis
+                domain={[0, 1]}
+                tick={{ fontSize: 12, fill: '#9CA3AF' }}
+                stroke='#6B7280'
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#1F2937',
+                  border: '1px solid #374151',
+                  borderRadius: '8px',
+                }}
+                labelFormatter={(value) =>
+                  new Date(value as number).toLocaleTimeString('ko-KR', {
+                    hour12: false,
+                  })
+                }
+              />
+              <Legend />
+              <ReferenceLine
+                y={threshold}
+                stroke='#EF4444'
+                strokeOpacity={0.7}
+                strokeDasharray='5 5'
+                label={{ value: `Threshold ${threshold}`, position: 'right' }}
+              />
+              <Line
+                type='monotone'
+                dataKey='score'
+                stroke='#3B82F6'
+                dot={false}
+                name='Score'
+                strokeWidth={2}
+              />
+              <Line
+                type='linear'
+                dataKey='fraud'
+                name='Fraud Detection'
+                stroke='#EF4444'
+                strokeWidth={3}
+                strokeDasharray='4 2'
+                dot={{ fill: '#EF4444', r: 3 }}
+              />
+              <Line
+                type='monotone'
+                dataKey='confidence'
+                stroke='#10B981'
+                dot={false}
+                name='Confidence'
+                strokeWidth={1.5}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
+
+      <div>
+        <h4 className='mb-2 text-sm text-slate-300'>모델별 기여도</h4>
+        <div className='h-48'>
+          <ResponsiveContainer width='100%' height='100%'>
+            <LineChart
+              data={chartData}
+              margin={{ top: 5, right: 16, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray='3 3' stroke='#374151' />
+              <XAxis
+                type='number'
+                dataKey='timeMs'
+                domain={['dataMin', 'dataMax']}
+                tick={{ fontSize: 12, fill: '#9CA3AF' }}
+                stroke='#6B7280'
+                tickFormatter={(value) =>
+                  new Date(value).toLocaleTimeString('ko-KR', {
+                    hour12: false,
+                  })
+                }
+              />
+              <YAxis
+                domain={[0, 1]}
+                tick={{ fontSize: 12, fill: '#9CA3AF' }}
+                stroke='#6B7280'
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#1F2937',
+                  border: '1px solid #374151',
+                  borderRadius: '8px',
+                }}
+                labelFormatter={(value) =>
+                  new Date(value as number).toLocaleTimeString('ko-KR', {
+                    hour12: false,
+                  })
+                }
+              />
+              <Legend />
+              <Line
+                type='monotone'
+                dataKey='lgbm'
+                stroke='#22D3EE'
+                dot={false}
+                name='LGBM'
+                strokeWidth={1.8}
+              />
+              <Line
+                type='monotone'
+                dataKey='xgb'
+                stroke='#FACC15'
+                dot={false}
+                name='XGBoost'
+                strokeWidth={1.8}
+              />
+              <Line
+                type='monotone'
+                dataKey='cat'
+                stroke='#C084FC'
+                dot={false}
+                name='CatBoost'
+                strokeWidth={1.8}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* <StreamingDataTable data={visibleData} /> */}
     </div>
   );
 }
